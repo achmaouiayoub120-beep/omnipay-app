@@ -1,0 +1,84 @@
+# ==============================================================================
+# Jenkins Configuration as Code (JCasC) — OmniPay Zero-Trust
+# ==============================================================================
+jenkins:
+  systemMessage: "OmniPay Zero-Trust — Plateforme CI/CD Sécurisée (ESTC)"
+  numExecutors: 0 # Le contrôleur n'exécute pas de builds directs (Bonne pratique DevSecOps)
+  mode: EXCLUSIVE
+  scmCheckoutRetryCount: 3
+
+  # Stratégie de sécurité globale (Role-Based ou Logged-In users)
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID:-admin}"
+          password: "${JENKINS_ADMIN_PASSWORD:-ChangeMeSecurePassword123!}"
+          description: "Administrateur technique OmniPay Zero-Trust"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+  # Préparation des agents conteneurisés
+  clouds:
+    - docker:
+        name: "docker-local-agents"
+        dockerApi:
+          dockerHost:
+            uri: "${DOCKER_HOST:-unix:///var/run/docker.sock}"
+        templates:
+          - name: "jenkins-agent-maven-gitleaks"
+            labelString: "maven-jdk21-gitleaks"
+            dockerTemplateBase:
+              image: "maven:3.9-eclipse-temurin-21"
+              pullCredentialsId: ""
+            remoteFs: "/home/jenkins/agent"
+            instanceCapStr: "5"
+            retentionStrategy:
+              idleMinutes: 10
+
+unclassified:
+  location:
+    url: "${JENKINS_URL:-http://localhost:8080/}"
+    adminAddress: "devsecops@omnipay.local"
+
+  gitHubPluginConfig:
+    hookUrl: "${JENKINS_URL:-http://localhost:8080/}github-webhook/"
+
+# Configuration des credentials de manière sécurisée via variables d'environnement
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: "sonar-auth-token"
+              secret: "${SONAR_TOKEN:-dummy-sonar-token}"
+              description: "Jeton d'authentification SonarQube"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "harbor-registry-creds"
+              username: "${HARBOR_ROBOT_USER:-robot-omnipay-ci}"
+              password: "${HARBOR_ROBOT_PASSWORD:-ChangeMeHarborRobotSecret!}"
+              description: "Compte robot Harbor pour le push d'images"
+
+jobs:
+  - script: >
+      pipelineJob('omnipay-app-ci') {
+        description('Pipeline principal CI OmniPay Zero-Trust')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('https://github.com/omnipay-org/omnipay-app.git')
+                  credentials('github-deploy-key')
+                }
+                branch('*/develop')
+              }
+            }
+            scriptPath('ci/Jenkinsfile')
+          }
+        }
+      }

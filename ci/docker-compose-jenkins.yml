@@ -1,0 +1,32 @@
+# ==============================================================================
+# Docker Compose pour Jenkins Contrôleur & JCasC — OmniPay Zero-Trust
+# ==============================================================================
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: omnipay-jenkins
+    restart: unless-stopped
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs/jenkins-casc.yaml
+      - JENKINS_ADMIN_ID=${JENKINS_ADMIN_ID:-admin}
+      - JENKINS_ADMIN_PASSWORD=${JENKINS_ADMIN_PASSWORD:-AdminSecureOmniPay2026!}
+      - JENKINS_URL=http://localhost:8080/
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - ./jenkins-casc.yaml:/var/jenkins_home/casc_configs/jenkins-casc.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - omnipay-ci-net
+
+networks:
+  omnipay-ci-net:
+    name: omnipay-ci-net
+
+volumes:
+  jenkins_data:
+    name: omnipay_jenkins_data

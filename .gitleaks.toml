@@ -1,0 +1,40 @@
+# ==============================================================================
+# Configuration Gitleaks — OmniPay Zero-Trust
+# ==============================================================================
+title = "OmniPay Zero-Trust Gitleaks Config"
+
+[extend]
+# Étendre la configuration par défaut de Gitleaks si disponible
+useDefault = true
+
+[allowlist]
+description = "Exceptions et faux positifs validés pour OmniPay"
+paths = [
+    '''pom\.xml$''',
+    '''target/''',
+    '''\.git/''',
+    '''docs/security/gitleaks\.md$''',
+    '''tests/fixtures/'''
+]
+regexes = [
+    '''AKIAIOSFODNN7EXAMPLE''',
+    '''wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY''',
+    '''dummy-secret-for-testing-only'''
+]
+
+# Règles de détection spécifiques
+[[rules]]
+id = "omnipay-generic-api-key"
+description = "Détection générique de clés API ou secrets dans le code OmniPay"
+regex = '''(?i)(api[_-]?key|secret[_-]?key|auth[_-]?token|private[_-]?key)\s*[:=]\s*['\"][A-Za-z0-9/\+=_-]{16,}['\"]'''
+entropy = 3.5
+severity = "CRITICAL"
+tags = ["key", "secret", "zero-trust"]
+
+[[rules]]
+id = "omnipay-jwt-hardcoded-secret"
+description = "Détection de clés secrètes JWT statiques"
+regex = '''(?i)(jwt[_-]?secret|jwt[_-]?signing[_-]?key)\s*[:=]\s*['\"][A-Za-z0-9/\+=_-]{10,}['\"]'''
+entropy = 3.0
+severity = "CRITICAL"
+tags = ["jwt", "crypto"]

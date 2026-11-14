@@ -1,0 +1,80 @@
+# ==============================================================================
+# OmniPay Zero-Trust — .gitignore pour omnipay-app
+# ==============================================================================
+
+# Fichiers compilés & caches Maven / Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+.mvn/wrapper/maven-wrapper.jar
+
+# Logs & fichiers temporaires
+*.log
+*.log.*
+logs/
+tmp/
+temp/
+
+# Environnements & IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.sublime-workspace
+.project
+.classpath
+.settings/
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Ansible & SSH
+*.retry
+*.vault
+vault-password.txt
+id_rsa*
+*.pem
+*.key
+*.crt
+known_hosts
+
+# Secrets & variables d'environnement
+.env
+.env.*
+!.env.example
+secrets/
+*.p12
+*.jks
+*.keystore
+
+# Outils de test & couverture
+coverage/
+.scannerwork/
+.sonar/
+dependency-check-report/
+report.html
+zap-report.*
+k6-summary.json
