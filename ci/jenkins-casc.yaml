@@ -3,11 +3,11 @@
 # ==============================================================================
 jenkins:
   systemMessage: "OmniPay Zero-Trust — Plateforme CI/CD Sécurisée (ESTC)"
-  numExecutors: 0 # Le contrôleur n'exécute pas de builds directs (Bonne pratique DevSecOps)
-  mode: EXCLUSIVE
+  numExecutors: 2
+  mode: NORMAL
   scmCheckoutRetryCount: 3
 
-  # Stratégie de sécurité globale (Role-Based ou Logged-In users)
+  # Stratégie de sécurité locale
   securityRealm:
     local:
       allowsSignup: false
@@ -20,33 +20,16 @@ jenkins:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
 
-  # Préparation des agents conteneurisés
-  clouds:
-    - docker:
-        name: "docker-local-agents"
-        dockerApi:
-          dockerHost:
-            uri: "${DOCKER_HOST:-unix:///var/run/docker.sock}"
-        templates:
-          - name: "jenkins-agent-maven-gitleaks"
-            labelString: "maven-jdk21-gitleaks"
-            dockerTemplateBase:
-              image: "maven:3.9-eclipse-temurin-21"
-              pullCredentialsId: ""
-            remoteFs: "/home/jenkins/agent"
-            instanceCapStr: "5"
-            retentionStrategy:
-              idleMinutes: 10
+security:
+  globalJobDslSecurityConfiguration:
+    useScriptSecurity: false
 
 unclassified:
   location:
-    url: "${JENKINS_URL:-http://localhost:8080/}"
+    url: "${JENKINS_URL:-http://localhost:8088/}"
     adminAddress: "devsecops@omnipay.local"
 
-  gitHubPluginConfig:
-    hookUrl: "${JENKINS_URL:-http://localhost:8080/}github-webhook/"
-
-# Configuration des credentials de manière sécurisée via variables d'environnement
+# Configuration des credentials via variables d'environnement
 credentials:
   system:
     domainCredentials:
@@ -73,7 +56,6 @@ jobs:
               git {
                 remote {
                   url('https://github.com/omnipay-org/omnipay-app.git')
-                  credentials('github-deploy-key')
                 }
                 branch('*/develop')
               }

@@ -81,7 +81,7 @@ L'ensemble des composants a été évalué face aux 6 vecteurs d'attaque :
 
 ### Validation pratique de la détection de secrets
 - Audit sur l'arbre complet du dépôt : **0 secret détecté** (`audit-secrets.ps1` exit code 0).
-- Injection d'une chaîne synthétique fictive (`api_key = "1234567890abcdef1234567890abcdef"`) dans `tests/security/` :
+- Injection d'une chaîne synthétique fictive (`api_key = "1234...[SYNTHETIC_TEST_KEY]..."`) dans `tests/security/` :
   - **Résultat** : Détection immédiate du pattern à la ligne 2.
   - **Code retour** : 1 (blocage immédiat de la CI).
   - **Nettoyage** : Fichier supprimé et historique vérifié propre.

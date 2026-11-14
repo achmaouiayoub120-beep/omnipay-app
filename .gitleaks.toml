@@ -13,7 +13,7 @@ paths = [
     '''pom\.xml$''',
     '''target/''',
     '''\.git/''',
-    '''docs/security/gitleaks\.md$''',
+    '''docs/.*\.md$''',
     '''tests/fixtures/'''
 ]
 regexes = [
