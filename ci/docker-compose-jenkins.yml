@@ -19,10 +19,14 @@ services:
       - JENKINS_ADMIN_PASSWORD=${JENKINS_ADMIN_PASSWORD:-AdminSecureOmniPay2026!}
       - JENKINS_URL=http://localhost:8088/
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - CONTAINER_NAME=omnipay-jenkins
     volumes:
       - jenkins_data:/var/jenkins_home
       - ./jenkins-casc.yaml:/var/jenkins_home/casc_configs/jenkins-casc.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - omnipay-ci-net
 

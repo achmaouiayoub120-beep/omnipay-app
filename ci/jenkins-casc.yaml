@@ -55,7 +55,7 @@ jobs:
             scm {
               git {
                 remote {
-                  url('https://github.com/omnipay-org/omnipay-app.git')
+                  url('https://github.com/achmaouiayoub120-beep/omnipay-app.git')
                 }
                 branch('*/develop')
               }

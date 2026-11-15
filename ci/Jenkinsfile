@@ -105,8 +105,7 @@ pipeline {
             echo '==================================================='
         }
         always {
-            echo "Fin du pipeline OmniPay à $(date -u)"
-            cleanWs deleteDirs: true, notFailBuild: true
+            echo 'Fin du pipeline OmniPay.'
         }
     }
 }
