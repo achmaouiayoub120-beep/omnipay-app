@@ -17,7 +17,14 @@ fi
 
 if command -v docker &> /dev/null && docker info &> /dev/null; then
     echo "[INFO] Exécution via Docker zricethezav/gitleaks:latest..."
-    docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest dir /path --config /path/.gitleaks.toml -v
+    TARGET_FULL="$(cd "${TARGET_DIR}" && pwd)"
+    # Détection de l'exécution dans un conteneur Jenkins (Docker-out-of-Docker)
+    if [ -f /.dockerenv ] || [ -d /var/jenkins_home ]; then
+        CONTAINER_REF="${CONTAINER_NAME:-omnipay-jenkins}"
+        docker run --rm --volumes-from "${CONTAINER_REF}" zricethezav/gitleaks:latest dir "${TARGET_FULL}" --config "${TARGET_FULL}/.gitleaks.toml" -v
+    else
+        docker run --rm -v "${TARGET_FULL}:/path" zricethezav/gitleaks:latest dir /path --config /path/.gitleaks.toml -v
+    fi
     echo "[SUCCÈS] Aucun secret détecté via conteneur Gitleaks."
     exit 0
 fi

@@ -106,7 +106,6 @@ pipeline {
         }
         always {
             echo 'Fin du pipeline OmniPay.'
-            cleanWs deleteDirs: true, notFailBuild: true
         }
     }
 }
