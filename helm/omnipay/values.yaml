@@ -1,0 +1,109 @@
+# Valeurs par defaut du chart OmniPay. Chaque cle de `services` genere
+# un Deployment et un Service (voir templates/).
+
+imagePullSecrets: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+services:
+  auth:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: harbor.omnipay.local/omnipay/auth-service
+      tag: "0.1.0"
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
+      port: 8081
+    healthPath: /api/auth/health
+    env: {}
+    livenessProbe:
+      initialDelaySeconds: 40
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  transaction:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: harbor.omnipay.local/omnipay/transaction-service
+      tag: "0.1.0"
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
+      port: 8082
+    healthPath: /api/transactions/health
+    env: {}
+    livenessProbe:
+      initialDelaySeconds: 40
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  notification:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: harbor.omnipay.local/omnipay/notification-service
+      tag: "0.1.0"
+      pullPolicy: IfNotPresent
+    service:
+      type: ClusterIP
+      port: 8083
+    healthPath: /api/notifications/health
+    env: {}
+    livenessProbe:
+      initialDelaySeconds: 40
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readinessProbe:
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
