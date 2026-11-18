@@ -1,0 +1,10 @@
+.git
+.github
+ci
+docs
+helm
+**/target
+**/*.log
+.env
+.env.*
+!.env.example
