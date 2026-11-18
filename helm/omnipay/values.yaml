@@ -22,7 +22,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      repository: harbor.omnipay.local/omnipay/auth-service
+      repository: harbor.omnipay.local:30002/omnipay/auth-service
       tag: "0.1.0"
       pullPolicy: IfNotPresent
     service:
@@ -52,7 +52,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      repository: harbor.omnipay.local/omnipay/transaction-service
+      repository: harbor.omnipay.local:30002/omnipay/transaction-service
       tag: "0.1.0"
       pullPolicy: IfNotPresent
     service:
@@ -82,7 +82,7 @@ services:
     enabled: true
     replicaCount: 1
     image:
-      repository: harbor.omnipay.local/omnipay/notification-service
+      repository: harbor.omnipay.local:30002/omnipay/notification-service
       tag: "0.1.0"
       pullPolicy: IfNotPresent
     service:

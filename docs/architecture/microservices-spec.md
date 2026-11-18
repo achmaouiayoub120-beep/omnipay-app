@@ -129,4 +129,4 @@ helm install omnipay helm/omnipay -n omnipay --create-namespace
 Le chart génère un Deployment + Service par entrée de `services` (`values.yaml`) avec
 probes liveness/readiness sur `/api/<service>/health`, `runAsNonRoot`, root filesystem en
 lecture seule (`/tmp` en `emptyDir`) et capabilities supprimées. Les images pointent vers
-`harbor.omnipay.local/omnipay/<service>:0.1.0` (à surcharger via `--set` ou le dépôt GitOps).
+`harbor.omnipay.local:30002/omnipay/<service>:0.1.0` (à surcharger via `--set` ou le dépôt GitOps).
