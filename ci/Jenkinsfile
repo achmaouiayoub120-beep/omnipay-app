@@ -1,111 +1,315 @@
 // ==============================================================================
-// Jenkinsfile — OmniPay Zero-Trust Pipeline CI (Semaine 1 Baseline)
+// Jenkinsfile — OmniPay Zero-Trust Pipeline DevSecOps Complet (Semaine 2)
+// Rôle P1 : Chef Technique & Architecte CI/CD
 // ==============================================================================
+// Architecture du pipeline :
+//   1. Checkout SCM & Metadata
+//   2. Shift-Left Secret Detection (Gitleaks)
+//   3. Dockerfile Quality & Lint (Hadolint)
+//   4. Compilation & Tests Unitaires (Maven Java 21)
+//   5. SAST & Quality Gate (SonarQube)
+//   6. SCA Dependency Vulnerability Check (OWASP Dependency-Check)
+//   7. Docker Multi-Stage Build (3 microservices)
+//   8. Container Security Vulnerability Scan (Trivy)
+//   9. Software Supply Chain Security (Syft SBOM & Cosign Signature)
+//  10. Registry Push vers Harbor (port 30002)
+//  11. GitOps Write-Back vers omnipay-gitops
+// ==============================================================================
+
 pipeline {
     agent any
 
     options {
-        timeout(time: 30, unit: 'MINUTES')
-        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 45, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '15'))
         disableConcurrentBuilds()
+        timestamps()
     }
 
     environment {
-        APP_NAME = 'omnipay'
-        CI_REGISTRY = 'harbor.omnipay.local'
+        APP_NAME        = 'omnipay'
+        CI_REGISTRY     = 'harbor.omnipay.local:30002'
+        CI_PROJECT      = 'omnipay'
+        BUILD_TAG       = "build-${BUILD_NUMBER}"
+        JAVA_HOME       = tool(name: 'jdk-21', type: 'jdk') ?: ''
+        MAVEN_HOME      = tool(name: 'maven-3.9', type: 'maven') ?: ''
+        SONAR_HOST_URL  = 'http://sonarqube.omnipay.local:30003'
+        SERVICES        = 'auth,transaction,notification'
     }
 
     stages {
-        stage('Checkout') {
+
+        // ===== STAGE 1 : CHECKOUT SCM & METADATA =====
+        stage('1. Checkout SCM') {
             steps {
-                echo '=== ÉTAPE 1 : RÉCUPÉRATION DU CODE SOURCE ==='
+                echo '============================================================'
+                echo '  ÉTAPE 1 : RÉCUPÉRATION DU CODE SOURCE & MÉTADONNÉES      '
+                echo '============================================================'
                 checkout scm
                 script {
-                    sh 'git log -1 --pretty=format:"Commit: %h - Auteur: %an - Message: %s"'
+                    env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    env.GIT_AUTHOR_NAME  = sh(script: 'git log -1 --pretty=format:"%an"', returnStdout: true).trim()
+                    env.GIT_COMMIT_MSG   = sh(script: 'git log -1 --pretty=format:"%s"', returnStdout: true).trim()
+                    echo "Commit  : ${env.GIT_COMMIT_SHORT}"
+                    echo "Auteur  : ${env.GIT_AUTHOR_NAME}"
+                    echo "Message : ${env.GIT_COMMIT_MSG}"
                 }
             }
         }
 
-        stage('Environment Check') {
+        // ===== STAGE 2 : SHIFT-LEFT SECRET DETECTION (GITLEAKS) =====
+        stage('2. Secret Scan (Gitleaks)') {
             steps {
-                echo '=== ÉTAPE 2 : VÉRIFICATION DE L\'ENVIRONNEMENT D\'EXÉCUTION ==='
-                sh '''
-                    echo "Date UTC: $(date -u)"
-                    echo "Hôte: $(hostname)"
-                    java -version || echo "[WARN] Java non disponible sur l'agent direct"
-                    mvn -version || echo "[WARN] Maven non disponible sur l'agent direct"
-                    git --version || echo "[WARN] Git non disponible sur l'agent direct"
-                '''
-            }
-        }
-
-        stage('Secret Scan (Gitleaks)') {
-            steps {
-                echo '=== ÉTAPE 3 : AUDIT SHIFT-LEFT DES SECRETS (GITLEAKS) ==='
+                echo '============================================================'
+                echo '  ÉTAPE 2 : AUDIT SHIFT-LEFT DES SECRETS (GITLEAKS)        '
+                echo '============================================================'
                 sh '''
                     if [ -f ci/scripts/audit-secrets.sh ]; then
                         chmod +x ci/scripts/audit-secrets.sh
                         ./ci/scripts/audit-secrets.sh .
                     else
-                        echo "[ERREUR] Script d'audit ci/scripts/audit-secrets.sh introuvable !"
+                        echo "[ERREUR] Script ci/scripts/audit-secrets.sh introuvable !"
                         exit 1
                     fi
                 '''
             }
         }
 
-        stage('Maven Build & Tests') {
+        // ===== STAGE 3 : DOCKERFILE QUALITY & LINT (HADOLINT) =====
+        stage('3. Dockerfile Lint (Hadolint)') {
             steps {
-                echo '=== ÉTAPE 4 : COMPILATION & TESTS UNITAIRES DES MICROSERVICES ==='
+                echo '============================================================'
+                echo '  ÉTAPE 3 : LINTING DES DOCKERFILES (HADOLINT SHIFT-LEFT)  '
+                echo '============================================================'
+                sh '''
+                    chmod +x ci/scripts/scan-hadolint.sh
+                    ./ci/scripts/scan-hadolint.sh
+                '''
+            }
+        }
+
+        // ===== STAGE 4 : COMPILATION & TESTS UNITAIRES (MAVEN) =====
+        stage('4. Maven Build & Tests') {
+            steps {
+                echo '============================================================'
+                echo '  ÉTAPE 4 : COMPILATION & TESTS UNITAIRES (MAVEN JAVA 21) '
+                echo '============================================================'
+                sh '''
+                    if [ -f pom.xml ]; then
+                        mvn clean verify \
+                            -B \
+                            -Dmaven.test.failure.ignore=false \
+                            -Djacoco.destFile=target/jacoco.exec
+                        echo "[OK] Build Maven et tests unitaires réussis."
+                    else
+                        echo "[WARN] pom.xml introuvable à la racine."
+                    fi
+                '''
+            }
+            post {
+                always {
+                    junit testResults: '**/target/surefire-reports/*.xml', allowEmptyResults: true
+                }
+            }
+        }
+
+        // ===== STAGE 5 : SAST & QUALITY GATE (SONARQUBE) =====
+        stage('5. SAST — SonarQube Analysis') {
+            steps {
+                echo '============================================================'
+                echo '  ÉTAPE 5 : ANALYSE SAST & QUALITY GATE (SONARQUBE)        '
+                echo '============================================================'
+                withSonarQubeEnv('SonarQube-OmniPay') {
+                    sh '''
+                        mvn sonar:sonar \
+                            -B \
+                            -Dsonar.projectKey=omnipay-banking-platform \
+                            -Dsonar.projectName="OmniPay Banking Platform" \
+                            -Dsonar.java.coveragePlugin=jacoco \
+                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+                    '''
+                }
+            }
+        }
+
+        stage('5b. Quality Gate') {
+            steps {
+                echo '       Attente du verdict de la Quality Gate SonarQube...'
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+                echo '[OK] Quality Gate SonarQube validée.'
+            }
+        }
+
+        // ===== STAGE 6 : SCA DEPENDENCY VULNERABILITY CHECK =====
+        stage('6. SCA — Dependency-Check') {
+            steps {
+                echo '============================================================'
+                echo '  ÉTAPE 6 : SCAN DES DÉPENDANCES (OWASP DEPENDENCY-CHECK) '
+                echo '============================================================'
+                sh '''
+                    if command -v dependency-check >/dev/null 2>&1; then
+                        dependency-check \
+                            --project "OmniPay" \
+                            --scan . \
+                            --format HTML \
+                            --format JSON \
+                            --out build/reports/dependency-check \
+                            --failOnCVSS 8 \
+                            --enableExperimental
+                    elif [ -f pom.xml ]; then
+                        mvn org.owasp:dependency-check-maven:check \
+                            -B \
+                            -DfailBuildOnCVSS=8 \
+                            -Dformat=ALL \
+                            -DoutputDirectory=build/reports/dependency-check
+                    else
+                        echo "[WARN] OWASP Dependency-Check non disponible."
+                    fi
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'build/reports/dependency-check/**', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ===== STAGE 7 : DOCKER MULTI-STAGE BUILD =====
+        stage('7. Docker Build') {
+            steps {
+                echo '============================================================'
+                echo '  ÉTAPE 7 : CONSTRUCTION DES IMAGES DOCKER MULTI-STAGE     '
+                echo '============================================================'
                 script {
-                    def services = ['services/auth', 'services/transaction', 'services/notification']
-                    def servicesFound = 0
-
+                    def services = env.SERVICES.split(',')
                     for (svc in services) {
-                        if (fileExists("${svc}/pom.xml")) {
-                            echo "--> Traitement du service : ${svc}"
-                            dir(svc) {
-                                sh 'mvn -B clean test package -DskipITs'
-                            }
-                            servicesFound++
-                        } else {
-                            echo "--> [ATTENTE P2] Aucun pom.xml dans ${svc} pour le moment. Étape ignorée."
-                        }
-                    }
-
-                    if (fileExists('pom.xml')) {
-                        echo "--> Traitement du pom.xml racine..."
-                        sh 'mvn -B clean test package'
-                    } else if (servicesFound == 0) {
-                        echo "[INFO] Aucun pom.xml détecté (en attente de livraison P2). Structure des dossiers validée."
+                        def imageName = "${env.CI_REGISTRY}/${env.CI_PROJECT}/${svc}-service:${env.BUILD_TAG}"
+                        echo "--- Construction de ${imageName} ---"
+                        sh """
+                            docker build \
+                                -t ${imageName} \
+                                -f services/${svc}/Dockerfile \
+                                services/${svc}/
+                        """
+                        echo "[OK] Image construite : ${imageName}"
                     }
                 }
             }
         }
 
-        stage('Packaging Verification') {
+        // ===== STAGE 8 : CONTAINER VULNERABILITY SCAN (TRIVY) =====
+        stage('8. Container Scan (Trivy)') {
             steps {
-                echo '=== ÉTAPE 5 : VÉRIFICATION DES ARTEFACTS ==='
-                sh '''
-                    echo "Validation de la structure de build terminée avec succès."
-                '''
+                echo '============================================================'
+                echo '  ÉTAPE 8 : SCAN DE VULNÉRABILITÉS CONTENEUR (TRIVY)       '
+                echo '============================================================'
+                script {
+                    def services = env.SERVICES.split(',')
+                    for (svc in services) {
+                        def imageName = "${env.CI_REGISTRY}/${env.CI_PROJECT}/${svc}-service:${env.BUILD_TAG}"
+                        echo "--- Scan Trivy de ${imageName} ---"
+                        sh """
+                            chmod +x ci/scripts/scan-trivy.sh
+                            ./ci/scripts/scan-trivy.sh "${imageName}" "CRITICAL,HIGH"
+                        """
+                    }
+                }
             }
         }
-    }
 
+        // ===== STAGE 9 : SUPPLY CHAIN (SYFT SBOM & COSIGN SIGNATURE) =====
+        stage('9. Supply Chain (Syft + Cosign)') {
+            steps {
+                echo '============================================================'
+                echo '  ÉTAPE 9 : SÉCURISATION SUPPLY CHAIN (SBOM & SIGNATURE)   '
+                echo '============================================================'
+                sh """
+                    chmod +x ci/scripts/syft-cosign-pipeline.sh
+                    ./ci/scripts/syft-cosign-pipeline.sh "${env.BUILD_TAG}"
+                """
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'build/sbom/*.json', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ===== STAGE 10 : REGISTRY PUSH VERS HARBOR =====
+        stage('10. Push to Harbor') {
+            steps {
+                echo '============================================================'
+                echo '  ÉTAPE 10 : ENVOI DES IMAGES VERS LE REGISTRE HARBOR      '
+                echo '============================================================'
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'harbor-registry',
+                        usernameVariable: 'HARBOR_USER',
+                        passwordVariable: 'HARBOR_PASS'
+                    )]) {
+                        sh """
+                            echo "\${HARBOR_PASS}" | docker login ${env.CI_REGISTRY} -u "\${HARBOR_USER}" --password-stdin
+                        """
+                        def services = env.SERVICES.split(',')
+                        for (svc in services) {
+                            def imageName = "${env.CI_REGISTRY}/${env.CI_PROJECT}/${svc}-service:${env.BUILD_TAG}"
+                            sh "docker push ${imageName}"
+                            echo "[OK] Image poussée : ${imageName}"
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== STAGE 11 : GITOPS WRITE-BACK =====
+        stage('11. GitOps Write-Back') {
+            steps {
+                echo '============================================================'
+                echo '  ÉTAPE 11 : MISE À JOUR GITOPS → ARGOCD AUTO-SYNC         '
+                echo '============================================================'
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-omnipay-gitops',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_TOKEN'
+                )]) {
+                    sh """
+                        chmod +x ci/scripts/gitops-writeback.sh
+                        export GITOPS_REMOTE="https://\${GIT_USER}:\${GIT_TOKEN}@github.com/achmaouiayoub120-beep/omnipay-gitops.git"
+                        ./ci/scripts/gitops-writeback.sh "${env.BUILD_TAG}"
+                    """
+                }
+            }
+        }
+
+    } // end stages
+
+    // ===== BLOC POST : NOTIFICATIONS & NETTOYAGE =====
     post {
         success {
-            echo '==================================================='
-            echo ' OmniPay Zero-Trust CI : BUILD RÉUSSI (SUCCESS)    '
-            echo '==================================================='
+            echo '🟢 Pipeline DevSecOps OmniPay RÉUSSI.'
+            sh """
+                chmod +x ci/scripts/notify-webhook.sh || true
+                ./ci/scripts/notify-webhook.sh SUCCESS || true
+            """
         }
         failure {
-            echo '==================================================='
-            echo ' OmniPay Zero-Trust CI : ÉCHEC DÉTECTÉ (FAILURE)   '
-            echo '==================================================='
+            echo '🔴 Pipeline DevSecOps OmniPay EN ÉCHEC.'
+            sh """
+                chmod +x ci/scripts/notify-webhook.sh || true
+                ./ci/scripts/notify-webhook.sh FAILURE || true
+            """
+        }
+        unstable {
+            echo '🟡 Pipeline DevSecOps OmniPay INSTABLE.'
+            sh """
+                chmod +x ci/scripts/notify-webhook.sh || true
+                ./ci/scripts/notify-webhook.sh UNSTABLE || true
+            """
         }
         always {
-            echo 'Fin du pipeline OmniPay.'
+            echo 'Fin du pipeline OmniPay Zero-Trust DevSecOps.'
         }
     }
 }
