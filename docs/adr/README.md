@@ -10,7 +10,7 @@ Chaque décision est documentée de manière immuable afin de préserver le cont
 
 | Numéro | Titre de la décision | Porteur | Statut | Date |
 |---|---|---|---|---|
-| [**ADR-001**](ADR-001.md) | Choix de la distribution Kubernetes légère K3s pour l'hébergement | P3 | Proposé | Semaine 1 |
+| [**ADR-001**](ADR-001.md) | Choix de la distribution Kubernetes légère K3s pour l'hébergement | P3 | **Accepté** | Semaine 1 |
 | [**ADR-002**](ADR-002.md) | Choix du registre d'images privé sécurisé Harbor | P4 | Proposé | Semaine 1 |
 | [**ADR-003**](ADR-003.md) | Choix du moteur d'intégration continue : Jenkins JCasC & agents dynamiques | P1 | **Accepté** | Semaine 1 |
 | [**ADR-004**](ADR-004.md) | Choix du modèle de déploiement continu GitOps avec ArgoCD | P4 | Proposé | Semaine 2 |

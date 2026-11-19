@@ -1,0 +1,15 @@
+# Copier ce fichier en terraform.tfvars (ignore par git) et adapter.
+# Ne JAMAIS y mettre de secret (mot de passe, token, cle privee).
+
+# Kubeconfig du cluster K3s (recupere par le playbook Ansible).
+# Sur le noeud K3s lui-meme : /etc/rancher/k3s/k3s.yaml
+kubeconfig_path = "~/.kube/config"
+
+# Domaine interne du cluster.
+cluster_domain = "omnipay.local"
+
+# Environnements -> namespaces omnipay-dev, omnipay-recette, omnipay-prod.
+environments = ["dev", "recette", "prod"]
+
+# Pod Security Standards : restricted (recommande, Zero-Trust).
+pss_level = "restricted"

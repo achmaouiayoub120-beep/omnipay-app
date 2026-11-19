@@ -1,0 +1,173 @@
+---
+# Playbook : prerequis systeme, durcissement minimal et installation K3s.
+# Idempotent : relancer le playbook ne reinstalle pas K3s s'il est deja present.
+- name: Installer et durcir K3s (OmniPay Zero-Trust)
+  hosts: k3s_master
+  become: true
+  vars:
+    k3s_install_exec: "--write-kubeconfig-mode 644 --disable traefik"
+    k3s_kubeconfig: /etc/rancher/k3s/k3s.yaml
+    kubeconfig_dest: "{{ lookup('env', 'HOME') }}/.kube/config"
+    k3s_api_port: 6443
+    k3s_nodeport_range: "30000:32767"
+    kernel_modules:
+      - overlay
+      - br_netfilter
+    sysctl_settings:
+      net.bridge.bridge-nf-call-iptables: "1"
+      net.bridge.bridge-nf-call-ip6tables: "1"
+      net.ipv4.ip_forward: "1"
+
+  tasks:
+    # ------------------------------------------------------------------
+    # Tache 1 : prerequis systeme
+    # ------------------------------------------------------------------
+    - name: Prerequis | Verifier que le swap est desactive
+      ansible.builtin.command: swapon --noheadings
+      register: swap_status
+      changed_when: false
+      failed_when: false
+
+    - name: Prerequis | Desactiver le swap si actif
+      ansible.builtin.command: swapoff -a
+      when: swap_status.stdout | length > 0
+      changed_when: true
+
+    - name: Prerequis | Retirer le swap de /etc/fstab
+      ansible.builtin.replace:
+        path: /etc/fstab
+        regexp: '^([^#\n].*\sswap\s.*)$'
+        replace: '# \1'
+
+    - name: Prerequis | Charger les modules noyau
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ kernel_modules }}"
+
+    - name: Prerequis | Persister les modules noyau au demarrage
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/k3s.conf
+        content: "{{ kernel_modules | join('\n') }}\n"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Prerequis | Configurer sysctl pour le reseau Kubernetes
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_file: /etc/sysctl.d/99-k3s.conf
+        state: present
+        reload: true
+      loop: "{{ sysctl_settings | dict2items }}"
+
+    - name: Prerequis | Installer curl et iptables
+      ansible.builtin.package:
+        name:
+          - curl
+          - iptables
+        state: present
+
+    # ------------------------------------------------------------------
+    # Pare-feu minimal (UFW, si present)
+    # ------------------------------------------------------------------
+    - name: Pare-feu | Detecter UFW
+      ansible.builtin.command: which ufw
+      register: ufw_present
+      changed_when: false
+      failed_when: false
+
+    - name: Pare-feu | Autoriser SSH avant toute activation
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+      when: ufw_present.rc == 0
+
+    - name: Pare-feu | Autoriser l'API Kubernetes (6443)
+      community.general.ufw:
+        rule: allow
+        port: "{{ k3s_api_port }}"
+        proto: tcp
+      when: ufw_present.rc == 0
+
+    - name: Pare-feu | Autoriser la plage NodePort (30000-32767)
+      community.general.ufw:
+        rule: allow
+        port: "{{ k3s_nodeport_range }}"
+        proto: tcp
+      when: ufw_present.rc == 0
+
+    # ------------------------------------------------------------------
+    # Tache 2 : installation K3s (script officiel get.k3s.io)
+    # ------------------------------------------------------------------
+    - name: K3s | Verifier si K3s est deja installe
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: K3s | Telecharger le script d'installation officiel
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s-install.sh
+        mode: "0700"
+      when: not k3s_binary.stat.exists
+
+    - name: K3s | Installer K3s (Traefik desactive : Ingress NGINX en S2)
+      ansible.builtin.command: /tmp/k3s-install.sh
+      environment:
+        INSTALL_K3S_EXEC: "{{ k3s_install_exec }}"
+      when: not k3s_binary.stat.exists
+      changed_when: true
+
+    - name: K3s | Supprimer le script d'installation
+      ansible.builtin.file:
+        path: /tmp/k3s-install.sh
+        state: absent
+
+    - name: K3s | S'assurer que le service k3s est demarre et active
+      ansible.builtin.systemd:
+        name: k3s
+        state: started
+        enabled: true
+
+    # ------------------------------------------------------------------
+    # Tache 3 : validation de l'installation
+    # ------------------------------------------------------------------
+    - name: Validation | Attendre que l'API server reponde sur 6443
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ k3s_api_port }}"
+        timeout: 120
+
+    - name: Validation | Attendre que le noeud passe en Ready
+      ansible.builtin.command: /usr/local/bin/k3s kubectl get nodes --no-headers
+      register: k3s_nodes
+      until: k3s_nodes.stdout is search('\sReady\s')
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Validation | Afficher l'etat des noeuds
+      ansible.builtin.debug:
+        var: k3s_nodes.stdout_lines
+
+    # ------------------------------------------------------------------
+    # Tache 4 : recuperation du kubeconfig
+    # ------------------------------------------------------------------
+    - name: Kubeconfig | Creer le repertoire ~/.kube de l'utilisateur
+      ansible.builtin.file:
+        path: "{{ kubeconfig_dest | dirname }}"
+        state: directory
+        mode: "0700"
+        owner: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
+      become: true
+
+    - name: Kubeconfig | Copier k3s.yaml vers l'utilisateur
+      ansible.builtin.copy:
+        src: "{{ k3s_kubeconfig }}"
+        dest: "{{ kubeconfig_dest }}"
+        remote_src: true
+        mode: "0600"
+        owner: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
