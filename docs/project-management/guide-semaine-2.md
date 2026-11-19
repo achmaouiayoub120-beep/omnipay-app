@@ -22,10 +22,10 @@
 | Rôle | Membre | Dépôt | Tâches Majeures S2 | Dépendances & Livrables |
 |:---:|:---|:---:|:---|:---|
 | **P1** | **Ayoub Achmaoui** | `omnipay-app` | Pipeline Jenkinsfile DevSecOps complet, SonarQube Quality Gate, Trivy, Write-Back GitOps | `ci/Jenkinsfile`, scripts d'automatisation |
-| **P2** | **Amir Adolf** | `omnipay-app` | Migrations Flyway SQL, tests d'intégration (couverture >80%), sondes K8s, values Helm dev/recette/prod | `services/*/db/migration/`, `helm/values-*.yaml` |
+| **P2** | **Amira Dolf** | `omnipay-app` | Migrations Flyway SQL, tests d'intégration (couverture >80%), sondes K8s, values Helm dev/recette/prod | `services/*/db/migration/`, `helm/values-*.yaml` |
 | **P3** | **El Mahdaoui** | `omnipay-app` & `omnipay-gitops` | Modules Terraform réutilisables, Ingress NGINX, cert-manager TLS, NetworkPolicies deny-all, Checkov IaC | `infra/terraform/modules/`, NetworkPolicies |
 | **P4** | **Widad El Gharzaz** | `omnipay-gitops` | SonarQube sur K3s, ApplicationSet ArgoCD multi-env, Kyverno signature gate, intégration Cosign/Harbor | `platform/sonarqube/`, ApplicationSet, Kyverno |
-| **P5** | **Moad Helkamel** | `omnipay-gitops` | Déploiement kube-prometheus-stack, Dashboards Grafana as Code, PrometheusRule alertes SLO, Loki logs | `platform/monitoring/dashboards/`, `rules/` |
+| **P5** | **MoadH Elkamel** | `omnipay-gitops` | Déploiement kube-prometheus-stack, Dashboards Grafana as Code, PrometheusRule alertes SLO, Loki logs | `platform/monitoring/dashboards/`, `rules/` |
 
 ---
 
