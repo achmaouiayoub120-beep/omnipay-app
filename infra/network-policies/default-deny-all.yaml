@@ -1,0 +1,17 @@
+# Refus par defaut : aucun pod du namespace ne recoit ni n'emet de trafic
+# tant qu'une autre NetworkPolicy ne l'autorise pas explicitement.
+# Appliquer dans CHAQUE namespace applicatif :
+#   for ns in omnipay-dev omnipay-recette omnipay-prod; do
+#     kubectl apply -n "$ns" -f infra/network-policies/default-deny-all.yaml
+#   done
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

@@ -65,3 +65,21 @@ Consequence pour P2/P4/P5 : les pods doivent definir `runAsNonRoot: true`, un `s
 
 Aucune ressource n'est creee manuellement : Ansible installe K3s, Terraform cree les namespaces.
 `terraform destroy && terraform apply` doit reconstruire l'ensemble (test de la Semaine 4).
+
+## 6. Semaine 2 : durcissement reseau (P3)
+
+| Livrable | Emplacement |
+| :--- | :--- |
+| Modules Terraform `namespaces` (PSS restricted + quotas) et `network` (CIDR, pare-feu, arguments K3s) | `infra/terraform/modules/` |
+| Environnements isoles (etat distant + verrou Lease Kubernetes) | `infra/terraform/envs/{dev,recette,prod}/` |
+| Ingress NGINX (HSTS, X-Frame-Options, X-Content-Type-Options), CA interne cert-manager, Ingress `api.omnipay.local` | `infra/ingress/` |
+| NetworkPolicies `default-deny-all` + flux bancaires autorises | `infra/network-policies/` |
+| Test de micro-segmentation, audit Checkov | `infra/scripts/` |
+| Decision d'architecture | `docs/adr/ADR-009.md` |
+
+Entree du trafic : `https://api.omnipay.local` (443, TLS cert-manager) -> Ingress NGINX -> services
+`/api/auth` (8081), `/api/transactions` (8082), `/api/notifications` (8083). Le pare-feu autorise
+desormais 80 et 443 ; les NodePorts restent reserves aux outils de la plateforme (admin_cidr).
+
+Ordre de mise en oeuvre : Ansible (K3s) -> `terraform apply` (envs/<env>) -> Helm cert-manager puis
+ingress-nginx -> `kubectl apply` des Issuers, des Ingress puis des NetworkPolicies.
