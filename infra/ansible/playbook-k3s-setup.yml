@@ -99,6 +99,14 @@
         proto: tcp
       when: ufw_present.rc == 0
 
+    - name: Pare-feu | Autoriser HTTP et HTTPS (Ingress NGINX, ports 80 et 443)
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop: [80, 443]
+      when: ufw_present.rc == 0
+
     # ------------------------------------------------------------------
     # Tache 2 : installation K3s (script officiel get.k3s.io)
     # ------------------------------------------------------------------

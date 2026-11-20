@@ -1,0 +1,53 @@
+# Ingress bancaire unifie : un seul point d'entree HTTPS (443) pour les 3 microservices.
+#   kubectl apply -n omnipay-dev -f infra/ingress/ingress-routes.yaml
+#   (recette / prod : meme manifeste avec -n omnipay-recette / -n omnipay-prod et un hote
+#    api-recette.omnipay.local / api-prod.omnipay.local, couverts par *.omnipay.local)
+#
+# Noms de Services : ceux du chart helm/omnipay avec la release "omnipay"
+# (<release>-<service>, port = values.yaml : 8081 / 8082 / 8083).
+# Test : echo "<IP-noeud> api.omnipay.local" >> hosts ; curl --cacert ca.crt https://api.omnipay.local/api/auth/health
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: omnipay-api
+  labels:
+    app.kubernetes.io/part-of: omnipay
+  annotations:
+    # Le certificat est emis par la CA locale et renouvele automatiquement.
+    cert-manager.io/cluster-issuer: omnipay-ca-issuer
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Limite la taille des requetes et le debit par IP (anti-abus).
+    nginx.ingress.kubernetes.io/proxy-body-size: 1m
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.omnipay.local
+      secretName: omnipay-tls-secret
+  rules:
+    - host: api.omnipay.local
+      http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: omnipay-auth
+                port:
+                  number: 8081
+          - path: /api/transactions
+            pathType: Prefix
+            backend:
+              service:
+                name: omnipay-transaction
+                port:
+                  number: 8082
+          - path: /api/notifications
+            pathType: Prefix
+            backend:
+              service:
+                name: omnipay-notification
+                port:
+                  number: 8083

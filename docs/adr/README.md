@@ -18,5 +18,5 @@ Chaque décision est documentée de manière immuable afin de préserver le cont
 | [**ADR-006**](ADR-006.md) | Gestion des secrets CI/CD, identités machines et intégration HashiCorp Vault | P1 & P3 | **Accepté** | Semaine 2 |
 | [**ADR-007**](../../../omnipay-gitops/docs/adr/ADR-007.md) | Stratégie de déploiement progressif Canary avec Argo Rollouts | P4 | **Accepté** | Semaine 2 |
 | [**ADR-008**](ADR-008.md) | Stratégie de branches, Conventional Commits et scan préventif Gitleaks | P1 | **Accepté** | Semaine 1 |
-| [**ADR-009**](ADR-009.md) | Politique de micro-segmentation réseau Zero-Trust (NetworkPolicies deny-all) | P3 | Proposé | Semaine 2 |
+| [**ADR-009**](ADR-009.md) | Politique de micro-segmentation réseau Zero-Trust (NetworkPolicies deny-all) | P3 | **Accepté** | Semaine 2 |
 | [**ADR-010**](ADR-010.md) | Observabilité pilotée par les SLO et alertes de consommation de budget d'erreur | P5 | **Accepté** | Semaine 1 |

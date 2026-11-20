@@ -1,0 +1,59 @@
+# Valeurs Helm - chart ingress-nginx (K3s, Traefik desactive).
+#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#   helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+#     --version 4.11.3 -n ingress-nginx --create-namespace \
+#     -f infra/ingress/ingress-controller-values.yaml
+controller:
+  # Controller par defaut du cluster (les Ingress sans ingressClassName l'utilisent).
+  ingressClassResource:
+    name: nginx
+    default: true
+
+  # LoadBalancer = ServiceLB de K3s : lie les ports 80 et 443 du noeud, sans NodePort brut.
+  service:
+    type: LoadBalancer
+    externalTrafficPolicy: Local
+
+  # Durcissement : pas de snippets arbitraires dans les annotations Ingress.
+  allowSnippetAnnotations: false
+
+  config:
+    # Terminaison TLS : HTTP redirige vers HTTPS, TLS 1.2+ uniquement.
+    ssl-redirect: "true"
+    force-ssl-redirect: "true"
+    ssl-protocols: "TLSv1.2 TLSv1.3"
+    # HSTS : le navigateur n'utilisera plus que HTTPS pendant 1 an.
+    hsts: "true"
+    hsts-max-age: "31536000"
+    hsts-include-subdomains: "true"
+    # Ne pas divulguer la version du serveur.
+    server-tokens: "false"
+
+  # En-tetes de securite ajoutes a toutes les reponses (le chart cree le ConfigMap
+  # et le branche sur `add-headers`).
+  addHeaders:
+    X-Frame-Options: DENY
+    X-Content-Type-Options: nosniff
+    Referrer-Policy: no-referrer
+    X-XSS-Protection: "0"
+    Permissions-Policy: "geolocation=(), microphone=(), camera=()"
+    Content-Security-Policy: "default-src 'none'; frame-ancestors 'none'"
+    Cache-Control: "no-store"
+
+  # Metriques du controller (scrapees par Prometheus).
+  metrics:
+    enabled: true
+
+  # Pod durci : non-root, seccomp, aucune capability sauf NET_BIND_SERVICE.
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
