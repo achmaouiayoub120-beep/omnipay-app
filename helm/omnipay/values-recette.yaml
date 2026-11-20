@@ -1,0 +1,24 @@
+# Profil RECETTE : 2 repliques par service (haute disponibilite de base), logs INFO,
+# ressources adaptees aux tests de charge (k6, voir tests/k6/).
+#   helm install omnipay helm/omnipay -f helm/omnipay/values-recette.yaml
+
+replicaCount: 2
+logLevel: INFO
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+  limits:
+    cpu: "300m"
+    memory: "384Mi"
+
+# Tolerance aux pannes : repartir les repliques sur les noeuds quand c'est possible,
+# sans bloquer le deploiement si le cluster n'a qu'un noeud.
+podAntiAffinity:
+  enabled: true
+  type: preferred
+podDisruptionBudget:
+  enabled: false
+autoscaling:
+  enabled: false

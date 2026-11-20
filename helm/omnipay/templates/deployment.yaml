@@ -9,7 +9,14 @@ metadata:
   labels:
     {{- include "omnipay.labels" $ctx | nindent 4 }}
 spec:
-  replicas: {{ $svc.replicaCount }}
+  {{- if not $.Values.autoscaling.enabled }}
+  replicas: {{ $svc.replicaCount | default $.Values.replicaCount }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       {{- include "omnipay.selectorLabels" $ctx | nindent 6 }}
@@ -26,8 +33,28 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      terminationGracePeriodSeconds: {{ $.Values.terminationGracePeriodSeconds }}
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      {{- if $.Values.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          {{- if eq ($.Values.podAntiAffinity.type | default "required") "preferred" }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "omnipay.selectorLabels" $ctx | nindent 20 }}
+                topologyKey: kubernetes.io/hostname
+          {{- else }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "omnipay.selectorLabels" $ctx | nindent 18 }}
+              topologyKey: kubernetes.io/hostname
+          {{- end }}
+      {{- end }}
       containers:
         - name: {{ $name }}
           image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
@@ -39,22 +66,41 @@ spec:
           env:
             - name: SERVER_PORT
               value: {{ $svc.service.port | quote }}
+            - name: LOGGING_LEVEL_COM_OMNIPAY
+              value: {{ $.Values.logLevel | quote }}
             {{- range $key, $value := $svc.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          livenessProbe:
+          startupProbe:
             httpGet:
-              path: {{ $svc.healthPath }}
+              path: {{ $.Values.probes.startup.path }}
               port: http
-            {{- toYaml $svc.livenessProbe | nindent 12 }}
+            periodSeconds: {{ $.Values.probes.startup.periodSeconds }}
+            timeoutSeconds: {{ $.Values.probes.startup.timeoutSeconds }}
+            failureThreshold: {{ $.Values.probes.startup.failureThreshold }}
           readinessProbe:
             httpGet:
-              path: {{ $svc.healthPath }}
+              path: {{ $.Values.probes.readiness.path }}
               port: http
-            {{- toYaml $svc.readinessProbe | nindent 12 }}
+            initialDelaySeconds: {{ $.Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ $.Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ $.Values.probes.readiness.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: {{ $.Values.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ $.Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ $.Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ $.Values.probes.liveness.failureThreshold }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", {{ $.Values.preStopSleepSeconds | quote }}]
           resources:
-            {{- toYaml $svc.resources | nindent 12 }}
+            {{- toYaml ($svc.resources | default $.Values.resources) | nindent 12 }}
           securityContext:
             {{- toYaml $.Values.containerSecurityContext | nindent 12 }}
           volumeMounts:
