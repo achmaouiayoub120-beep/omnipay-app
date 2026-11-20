@@ -1,9 +1,20 @@
 server:
   port: ${SERVER_PORT:8083}
+  shutdown: graceful
 
 spring:
   application:
     name: notification-service
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:omnipay;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
 management:
   endpoints:
@@ -14,6 +25,7 @@ management:
     health:
       probes:
         enabled: true
+      show-details: always
   metrics:
     tags:
       application: ${spring.application.name}

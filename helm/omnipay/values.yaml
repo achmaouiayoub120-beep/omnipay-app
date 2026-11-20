@@ -1,8 +1,64 @@
-# Valeurs par defaut du chart OmniPay. Chaque cle de `services` genere
-# un Deployment et un Service (voir templates/).
+# Valeurs par defaut du chart OmniPay (profil minimal). Chaque cle de `services`
+# genere un Deployment et un Service (voir templates/).
+# Les profils d'environnement surchargent ce fichier :
+#   helm install omnipay helm/omnipay -f helm/omnipay/values-dev.yaml
 
 imagePullSecrets: []
 
+# --- Parametres communs aux 3 services (surchargeables par service dans `services.<nom>`) ---
+replicaCount: 1
+
+# Niveau de logs applicatif (package com.omnipay.*)
+logLevel: INFO
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Sondes Kubernetes alimentees par Spring Boot Actuator (management.endpoint.health.probes.enabled)
+probes:
+  startup:   # laisse jusqu'a 300 s au demarrage (JVM + Flyway, ~110 s mesures a 0,2 CPU) avant que la liveness ne s'applique
+    path: /actuator/health/liveness
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 60
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Arret gracieux : preStop (retrait des endpoints) + spring.lifecycle.timeout-per-shutdown-phase (20s)
+# doivent tenir dans terminationGracePeriodSeconds.
+preStopSleepSeconds: 5
+terminationGracePeriodSeconds: 40
+
+# --- Haute disponibilite (actives dans values-prod.yaml) ---
+podAntiAffinity:
+  enabled: false        # un seul pod d'un meme service par noeud (kubernetes.io/hostname)
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+# --- Pod Security Standards "restricted" (impose par P3) ---
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 10001
@@ -14,13 +70,13 @@ podSecurityContext:
 containerSecurityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
+  runAsNonRoot: true
   capabilities:
     drop: ["ALL"]
 
 services:
   auth:
     enabled: true
-    replicaCount: 1
     image:
       repository: harbor.omnipay.local:30002/omnipay/auth-service
       tag: "0.1.0"
@@ -28,29 +84,10 @@ services:
     service:
       type: ClusterIP
       port: 8081
-    healthPath: /api/auth/health
     env: {}
-    livenessProbe:
-      initialDelaySeconds: 40
-      periodSeconds: 15
-      timeoutSeconds: 3
-      failureThreshold: 3
-    readinessProbe:
-      initialDelaySeconds: 20
-      periodSeconds: 10
-      timeoutSeconds: 3
-      failureThreshold: 3
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
 
   transaction:
     enabled: true
-    replicaCount: 1
     image:
       repository: harbor.omnipay.local:30002/omnipay/transaction-service
       tag: "0.1.0"
@@ -58,29 +95,10 @@ services:
     service:
       type: ClusterIP
       port: 8082
-    healthPath: /api/transactions/health
     env: {}
-    livenessProbe:
-      initialDelaySeconds: 40
-      periodSeconds: 15
-      timeoutSeconds: 3
-      failureThreshold: 3
-    readinessProbe:
-      initialDelaySeconds: 20
-      periodSeconds: 10
-      timeoutSeconds: 3
-      failureThreshold: 3
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
 
   notification:
     enabled: true
-    replicaCount: 1
     image:
       repository: harbor.omnipay.local:30002/omnipay/notification-service
       tag: "0.1.0"
@@ -88,22 +106,4 @@ services:
     service:
       type: ClusterIP
       port: 8083
-    healthPath: /api/notifications/health
     env: {}
-    livenessProbe:
-      initialDelaySeconds: 40
-      periodSeconds: 15
-      timeoutSeconds: 3
-      failureThreshold: 3
-    readinessProbe:
-      initialDelaySeconds: 20
-      periodSeconds: 10
-      timeoutSeconds: 3
-      failureThreshold: 3
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi

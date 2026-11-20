@@ -1,0 +1,20 @@
+# Profil DEV : 1 replique par service, logs DEBUG, ressources minimales.
+#   helm install omnipay helm/omnipay -f helm/omnipay/values-dev.yaml
+
+replicaCount: 1
+logLevel: DEBUG
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "128Mi"
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+
+podAntiAffinity:
+  enabled: false
+podDisruptionBudget:
+  enabled: false
+autoscaling:
+  enabled: false

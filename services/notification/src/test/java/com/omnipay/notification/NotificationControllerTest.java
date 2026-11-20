@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -19,6 +20,10 @@ class NotificationControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    private ResultActions send(String json) throws Exception {
+        return mockMvc.perform(post("/api/notifications/send").contentType(MediaType.APPLICATION_JSON).content(json));
+    }
 
     @Test
     void healthReturnsUp() throws Exception {
@@ -29,20 +34,25 @@ class NotificationControllerTest {
     }
 
     @Test
-    void sendReturnsSent() throws Exception {
-        mockMvc.perform(post("/api/notifications/send")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"recipient\":\"user@omnipay.local\",\"message\":\"Virement recu\"}"))
+    void validNotificationIsSent() throws Exception {
+        send("{\"recipient\":\"user@omnipay.local\",\"message\":\"Virement recu\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SENT"))
                 .andExpect(jsonPath("$.notificationId").value(Matchers.startsWith("NT-")));
     }
 
     @Test
-    void missingRecipientIsRejected() throws Exception {
-        mockMvc.perform(post("/api/notifications/send")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"message\":\"Virement recu\"}"))
-                .andExpect(status().isBadRequest());
+    void emptyPayloadIsRejected() throws Exception {
+        send("{}").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void missingMessageIsRejected() throws Exception {
+        send("{\"recipient\":\"user@omnipay.local\"}").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void blankRecipientIsRejected() throws Exception {
+        send("{\"recipient\":\"  \",\"message\":\"hello\"}").andExpect(status().isBadRequest());
     }
 }
