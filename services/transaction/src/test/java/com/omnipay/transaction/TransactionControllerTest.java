@@ -8,53 +8,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-class TransactionControllerTest {
+class TransactionControllerTest extends AbstractIntegrationTest {
 
-    private static final String ALICE = "ACC-ALICE-001";
-    private static final String BOB = "ACC-BOB-002";
+    private static final String ADMIN = bearer("admin", "ROLE_ADMIN", "ROLE_USER");
+    private static final String ALICE_TOKEN = bearer("alice", "ROLE_USER");
+    private static final String USER = bearer("user", "ROLE_USER");
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private JdbcClient jdbc;
-
-    /** Etat initial identique a la migration Flyway, quel que soit l'ordre des tests. */
-    @BeforeEach
-    void resetData() {
-        jdbc.sql("DELETE FROM transactions").update();
-        jdbc.sql("UPDATE accounts SET balance = 1000.00 WHERE account_id = :id").param("id", ALICE).update();
-        jdbc.sql("UPDATE accounts SET balance = 500.00 WHERE account_id = :id").param("id", BOB).update();
-    }
-
-    private ResultActions transfer(String source, String target, String amount) throws Exception {
-        String json = "{\"sourceAccount\":\"" + source + "\",\"targetAccount\":\"" + target + "\",\"amount\":" + amount + "}";
-        return mockMvc.perform(post("/api/transactions/transfer").contentType(MediaType.APPLICATION_JSON).content(json));
-    }
-
-    private BigDecimal balance(String accountId) {
-        return jdbc.sql("SELECT balance FROM accounts WHERE account_id = :id").param("id", accountId)
-                .query(BigDecimal.class).single();
-    }
-
-    private int transactionCount() {
-        return jdbc.sql("SELECT COUNT(*) FROM transactions").query(Integer.class).single();
+    private void assertBalance(String accountId, String expected) {
+        assertEquals(0, new BigDecimal(expected).compareTo(balance(accountId)), accountId + " = " + balance(accountId));
     }
 
     @Test
-    void healthReturnsUp() throws Exception {
+    void healthIsPublicAndReturnsUp() throws Exception {
         mockMvc.perform(get("/api/transactions/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
@@ -62,79 +30,153 @@ class TransactionControllerTest {
     }
 
     @Test
-    void flywaySeedsInitialBalances() {
-        assertEquals(0, new BigDecimal("1000.00").compareTo(balance(ALICE)));
-        assertEquals(0, new BigDecimal("500.00").compareTo(balance(BOB)));
+    void flywaySeedsAccountsAndIdempotencyTable() {
+        assertBalance(ALICE, "1000.00");
+        assertBalance(BOB, "500.00");
+        assertBalance(USER_ACCOUNT, "14250.00");
+        assertEquals(0, count("idempotency_keys"));
     }
 
     @Test
     void transferMovesMoneyAndRecordsTransaction() throws Exception {
-        transfer(ALICE, BOB, "150.25")
+        transfer(ADMIN, null, ALICE, BOB, "150.25")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUCCESS"))
                 .andExpect(jsonPath("$.amount").value(150.25))
                 .andExpect(jsonPath("$.transactionId").isNotEmpty());
 
-        assertEquals(0, new BigDecimal("849.75").compareTo(balance(ALICE)));
-        assertEquals(0, new BigDecimal("650.25").compareTo(balance(BOB)));
-        assertEquals(1, transactionCount());
+        assertBalance(ALICE, "849.75");
+        assertBalance(BOB, "650.25");
+        assertEquals(1, count("transactions"));
+    }
+
+    @Test
+    void legacyTransferPathStillWorks() throws Exception {
+        mockMvc.perform(post("/api/transactions/transfer").header("Authorization", ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceAccount\":\"" + ALICE + "\",\"targetAccount\":\"" + BOB + "\",\"amount\":10}"))
+                .andExpect(status().isOk());
+        assertBalance(BOB, "510.00");
+    }
+
+    @Test
+    void sourceDefaultsToTheCallersOwnAccountAndKeepsTheReason() throws Exception {
+        mockMvc.perform(post("/api/transactions").header("Authorization", USER).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetAccount\":\"" + BOB + "\",\"amount\":250.00,\"reason\":\"  Loyer novembre \"}"))
+                .andExpect(status().isOk());
+
+        assertBalance(USER_ACCOUNT, "14000.00");
+        assertBalance(BOB, "750.00");
+        mockMvc.perform(get("/api/transactions").header("Authorization", USER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].reason").value("Loyer novembre"))
+                .andExpect(jsonPath("$[0].sourceAccount").value(USER_ACCOUNT))
+                .andExpect(jsonPath("$[0].status").value("SUCCESS"));
+    }
+
+    @Test
+    void userWithoutAccountCannotUseTheDefaultSource() throws Exception {
+        transfer(bearer("nobody", "ROLE_USER"), null, null, BOB, "10").andExpect(status().isNotFound());
+    }
+
+    @Test
+    void userCannotDebitSomeoneElsesAccount() throws Exception {
+        transfer(USER, null, ALICE, BOB, "10").andExpect(status().isForbidden());
+        assertBalance(ALICE, "1000.00");
+        assertEquals(0, count("transactions"));
+    }
+
+    @Test
+    void ownerCanDebitOwnAccount() throws Exception {
+        transfer(ALICE_TOKEN, null, ALICE, BOB, "10").andExpect(status().isOk());
+        assertBalance(ALICE, "990.00");
     }
 
     @Test
     void transferOfWholeBalanceIsAllowed() throws Exception {
-        transfer(ALICE, BOB, "1000").andExpect(status().isOk());
-        assertEquals(0, BigDecimal.ZERO.compareTo(balance(ALICE)));
-        assertEquals(0, new BigDecimal("1500.00").compareTo(balance(BOB)));
+        transfer(ADMIN, null, ALICE, BOB, "1000").andExpect(status().isOk());
+        assertBalance(ALICE, "0");
+        assertBalance(BOB, "1500.00");
     }
 
     @Test
-    void transferWithInsufficientFundsIsRejectedAndLeavesBalancesUntouched() throws Exception {
-        transfer(BOB, ALICE, "500.01").andExpect(status().isUnprocessableEntity());
-
-        assertEquals(0, new BigDecimal("500.00").compareTo(balance(BOB)));
-        assertEquals(0, new BigDecimal("1000.00").compareTo(balance(ALICE)));
-        assertEquals(0, transactionCount());
+    void insufficientFundsIsRejectedAndLeavesBalancesUntouched() throws Exception {
+        transfer(ADMIN, null, BOB, ALICE, "500.01").andExpect(status().isUnprocessableEntity());
+        assertBalance(BOB, "500.00");
+        assertBalance(ALICE, "1000.00");
+        assertEquals(0, count("transactions"));
     }
 
     @Test
-    void transferFromUnknownSourceIsNotFound() throws Exception {
-        transfer("ACC-GHOST-999", BOB, "10").andExpect(status().isNotFound());
-        assertEquals(0, new BigDecimal("500.00").compareTo(balance(BOB)));
+    void unknownAccountsAreNotFound() throws Exception {
+        transfer(ADMIN, null, "ACC-GHOST-999", BOB, "10").andExpect(status().isNotFound());
+        transfer(ADMIN, null, ALICE, "ACC-GHOST-999", "10").andExpect(status().isNotFound());
+        assertBalance(ALICE, "1000.00");
     }
 
     @Test
-    void transferToUnknownTargetIsNotFound() throws Exception {
-        transfer(ALICE, "ACC-GHOST-999", "10").andExpect(status().isNotFound());
-        assertEquals(0, new BigDecimal("1000.00").compareTo(balance(ALICE)));
+    void invalidAmountIsRejected() throws Exception {
+        transfer(ADMIN, null, ALICE, BOB, "0").andExpect(status().isBadRequest());
+        transfer(ADMIN, null, ALICE, BOB, "-5").andExpect(status().isBadRequest());
+        transfer(ADMIN, null, ALICE, BOB, "null").andExpect(status().isBadRequest());
+        transfer(ADMIN, null, ALICE, BOB, "10.555").andExpect(status().isBadRequest());
+        assertEquals(0, count("transactions"));
     }
 
     @Test
-    void zeroNegativeOrMissingAmountIsRejected() throws Exception {
-        transfer(ALICE, BOB, "0").andExpect(status().isBadRequest());
-        transfer(ALICE, BOB, "-5").andExpect(status().isBadRequest());
-        transfer(ALICE, BOB, "null").andExpect(status().isBadRequest());
-        assertEquals(0, transactionCount());
-    }
-
-    @Test
-    void amountWithMoreThanTwoDecimalsIsRejected() throws Exception {
-        transfer(ALICE, BOB, "10.555").andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void blankOrIdenticalAccountsAreRejected() throws Exception {
-        transfer("", BOB, "10").andExpect(status().isBadRequest());
-        transfer(ALICE, " ", "10").andExpect(status().isBadRequest());
-        transfer(ALICE, ALICE, "10").andExpect(status().isBadRequest());
+    void invalidAccountsOrReasonAreRejected() throws Exception {
+        transfer(ADMIN, null, ALICE, " ", "10").andExpect(status().isBadRequest());
+        transfer(ADMIN, null, ALICE, ALICE, "10").andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/transactions").header("Authorization", ADMIN).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetAccount\":\"" + BOB + "\",\"amount\":1,\"reason\":\"" + "x".repeat(141) + "\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void successiveTransfersConserveTheTotalMoney() throws Exception {
         for (int i = 0; i < 5; i++) {
-            transfer(ALICE, BOB, "10.50").andExpect(status().isOk());
-            transfer(BOB, ALICE, "3.25").andExpect(status().isOk());
+            transfer(ADMIN, null, ALICE, BOB, "10.50").andExpect(status().isOk());
+            transfer(ADMIN, null, BOB, ALICE, "3.25").andExpect(status().isOk());
         }
         assertEquals(0, new BigDecimal("1500.00").compareTo(balance(ALICE).add(balance(BOB))));
-        assertEquals(10, transactionCount());
+        assertEquals(10, count("transactions"));
+    }
+
+    @Test
+    void myAccountsReturnsOnlyTheCallersAccounts() throws Exception {
+        mockMvc.perform(get("/api/transactions/accounts/me").header("Authorization", USER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].accountId").value(USER_ACCOUNT))
+                .andExpect(jsonPath("$[0].balance").value(14250.00))
+                .andExpect(jsonPath("$[0].currency").value("EUR"));
+    }
+
+    @Test
+    void historyIsScopedToTheUserButAdminAndAuditorSeeEverything() throws Exception {
+        transfer(ADMIN, null, ALICE, BOB, "10").andExpect(status().isOk());
+        transfer(USER, null, null, BOB, "5").andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/transactions").header("Authorization", USER))
+                .andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/api/transactions").header("Authorization", bearer("auditor", "ROLE_AUDITOR")))
+                .andExpect(jsonPath("$.length()").value(2));
+        mockMvc.perform(get("/api/transactions").header("Authorization", ADMIN))
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void chaosHeaderProvokesAnInternalErrorForAdminOnly() throws Exception {
+        mockMvc.perform(post("/api/transactions").header("Authorization", ADMIN).header("X-Chaos-Fail", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceAccount\":\"" + ALICE + "\",\"targetAccount\":\"" + BOB + "\",\"amount\":1}"))
+                .andExpect(status().isInternalServerError());
+        mockMvc.perform(post("/api/transactions").header("Authorization", USER).header("X-Chaos-Fail", "true")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"targetAccount\":\"" + BOB + "\",\"amount\":1}"))
+                .andExpect(status().isForbidden());
+        assertBalance(ALICE, "1000.00");
+        assertEquals(0, count("transactions"));
     }
 }

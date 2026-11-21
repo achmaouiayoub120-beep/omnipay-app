@@ -74,6 +74,49 @@ containerSecurityContext:
   capabilities:
     drop: ["ALL"]
 
+# --- Securite applicative (S3) ---
+# Secret JWT partage par auth et transaction : Secret Kubernetes cree HORS depot (jamais dans Git) :
+#   kubectl -n <namespace> create secret generic omnipay-jwt --from-literal=secret="$(openssl rand -base64 48)"
+jwt:
+  existingSecret: omnipay-jwt
+  secretKey: secret
+
+# Injection de panne pour la demo jury (bouton "Simuler Erreur 500", ROLE_ADMIN). Jamais en production.
+chaos:
+  enabled: false
+
+# --- Portail web (Nginx non-root, port 8080) ---
+frontend:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: harbor.omnipay.local:30002/omnipay/frontend-service
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Ingress NGINX du portail (active dans values-dev/recette/prod.yaml)
+ingress:
+  enabled: false
+  className: nginx
+  hosts:
+    - app.omnipay.local
+    - omnipay.local
+  tls:
+    enabled: true
+    secretName: omnipay-frontend-tls
+    clusterIssuer: omnipay-ca-issuer
+  annotations: {}
+
 services:
   auth:
     enabled: true
@@ -84,6 +127,7 @@ services:
     service:
       type: ClusterIP
       port: 8081
+    jwt: true
     env: {}
 
   transaction:
@@ -95,6 +139,8 @@ services:
     service:
       type: ClusterIP
       port: 8082
+    jwt: true
+    chaos: true
     env: {}
 
   notification:

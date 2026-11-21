@@ -16,6 +16,15 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
+omnipay:
+  security:
+    jwt:
+      secret: ${OMNIPAY_JWT_SECRET:}
+      issuer: omnipay-security-authority
+      ttl: 1h
+  cors:
+    allowed-origin-patterns: ${OMNIPAY_CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*}
+
 management:
   endpoints:
     web:

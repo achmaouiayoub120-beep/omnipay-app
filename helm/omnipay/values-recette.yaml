@@ -22,3 +22,14 @@ podDisruptionBudget:
   enabled: false
 autoscaling:
   enabled: false
+
+# Portail web + Ingress (app.omnipay.local, omnipay.local)
+frontend:
+  enabled: true
+  replicaCount: 1
+ingress:
+  enabled: true
+
+# Demo jury : bouton "Simuler Erreur 500" actif
+chaos:
+  enabled: true
