@@ -1,62 +1,62 @@
 package com.omnipay.transaction;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Virement compte a compte : debit, credit et historique dans une seule transaction SQL. */
+import com.omnipay.transaction.TransferService.AccountView;
+import com.omnipay.transaction.TransferService.TransactionView;
+import com.omnipay.transaction.TransferService.TransferRequest;
+import com.omnipay.transaction.TransferService.TransferResponse;
+
+/** API des virements. Les droits (RBAC) sont appliques par SecurityConfig ; l'utilisateur vient du JWT. */
 @RestController
 @RequestMapping("/api/transactions")
 public class TransactionController {
 
-    public record TransferRequest(String sourceAccount, String targetAccount, BigDecimal amount) { }
+    private static final Logger LOG = LoggerFactory.getLogger(TransactionController.class);
 
-    public record TransferResponse(String transactionId, String status, BigDecimal amount) { }
+    private final TransferService transfers;
+    private final IdempotencyService idempotency;
+    private final boolean chaosEnabled;
 
-    private final JdbcClient jdbc;
-
-    public TransactionController(JdbcClient jdbc) {
-        this.jdbc = jdbc;
+    public TransactionController(TransferService transfers, IdempotencyService idempotency,
+                                 @Value("${omnipay.chaos.enabled:false}") boolean chaosEnabled) {
+        this.transfers = transfers;
+        this.idempotency = idempotency;
+        this.chaosEnabled = chaosEnabled;
     }
 
-    @PostMapping("/transfer")
-    @Transactional
-    public TransferResponse transfer(@RequestBody TransferRequest request) {
-        String source = request.sourceAccount();
-        String target = request.targetAccount();
-        BigDecimal amount = request.amount();
-        if (isBlank(source) || isBlank(target) || source.equals(target)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sourceAccount and targetAccount must be set and different");
-        }
-        if (amount == null || amount.signum() <= 0 || amount.stripTrailingZeros().scale() > 2) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "amount must be greater than 0 (2 decimals max)");
-        }
-        Map<String, BigDecimal> balances = lockBalances(source, target);
-        if (!balances.containsKey(source) || !balances.containsKey(target)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "account not found");
-        }
-        if (balances.get(source).compareTo(amount) < 0) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "insufficient funds");
-        }
-        updateBalance(source, amount.negate());
-        updateBalance(target, amount);
-        String id = UUID.randomUUID().toString();
-        jdbc.sql("INSERT INTO transactions (id, source_account, target_account, amount, status)"
-                        + " VALUES (:id, :source, :target, :amount, 'SUCCESS')")
-                .param("id", id).param("source", source).param("target", target).param("amount", amount)
-                .update();
-        return new TransferResponse(id, "SUCCESS", amount);
+    /** POST /api/transactions (alias historique : /transfer). Rejouable grace a X-Idempotency-Key. */
+    @PostMapping({"", "/transfer"})
+    public TransferResponse transfer(@RequestBody TransferRequest request, Authentication auth,
+                                     @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+                                     @RequestHeader(value = "X-Chaos-Fail", required = false) String chaos) {
+        injectFaultIfRequested(auth, chaos);
+        return idempotency.execute(auth.getName(), idempotencyKey,
+                () -> transfers.transfer(request, auth.getName(), hasRole(auth, "ROLE_ADMIN")));
+    }
+
+    @GetMapping
+    public List<TransactionView> history(Authentication auth) {
+        return transfers.history(auth.getName(), hasRole(auth, "ROLE_ADMIN") || hasRole(auth, "ROLE_AUDITOR"));
+    }
+
+    @GetMapping("/accounts/me")
+    public List<AccountView> myAccounts(Authentication auth) {
+        return transfers.accountsOf(auth.getName());
     }
 
     @GetMapping("/health")
@@ -64,27 +64,22 @@ public class TransactionController {
         return Map.of("status", "UP", "service", "transaction-service");
     }
 
-    /** Verrouille les deux comptes dans l'ordre des identifiants : pas de lecture perimee, pas d'interblocage. */
-    private Map<String, BigDecimal> lockBalances(String source, String target) {
-        return jdbc.sql("SELECT account_id, balance FROM accounts WHERE account_id IN (:source, :target)"
-                        + " ORDER BY account_id FOR UPDATE")
-                .param("source", source).param("target", target)
-                .query(rs -> {
-                    Map<String, BigDecimal> balances = new HashMap<>();
-                    while (rs.next()) {
-                        balances.put(rs.getString("account_id"), rs.getBigDecimal("balance"));
-                    }
-                    return balances;
-                });
+    /**
+     * Demo jury (rollback canary) : avec OMNIPAY_CHAOS_ENABLED=true et le role ADMIN, l'en-tete
+     * X-Chaos-Fail: true provoque une vraie erreur 500. Desactive par defaut, donc inoperant en production.
+     */
+    private void injectFaultIfRequested(Authentication auth, String chaos) {
+        if (!"true".equalsIgnoreCase(chaos)) {
+            return;
+        }
+        if (!chaosEnabled || !hasRole(auth, "ROLE_ADMIN")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "chaos injection is disabled");
+        }
+        LOG.error("[CHAOS] panne simulee par {} pour la demonstration du rollback canary", auth.getName());
+        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "[CHAOS] simulated failure");
     }
 
-    private void updateBalance(String accountId, BigDecimal delta) {
-        jdbc.sql("UPDATE accounts SET balance = balance + :delta WHERE account_id = :id")
-                .param("delta", delta).param("id", accountId)
-                .update();
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    private static boolean hasRole(Authentication auth, String role) {
+        return auth.getAuthorities().stream().anyMatch(a -> role.equals(a.getAuthority()));
     }
 }

@@ -68,6 +68,17 @@ spec:
               value: {{ $svc.service.port | quote }}
             - name: LOGGING_LEVEL_COM_OMNIPAY
               value: {{ $.Values.logLevel | quote }}
+            {{- if $svc.jwt }}
+            - name: OMNIPAY_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.jwt.existingSecret }}
+                  key: {{ $.Values.jwt.secretKey }}
+            {{- end }}
+            {{- if $svc.chaos }}
+            - name: OMNIPAY_CHAOS_ENABLED
+              value: {{ $.Values.chaos.enabled | quote }}
+            {{- end }}
             {{- range $key, $value := $svc.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

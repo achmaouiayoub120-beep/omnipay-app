@@ -1,0 +1,21 @@
+{{- if .Values.frontend.enabled }}
+{{- $ctx := dict "root" $ "name" "frontend" }}
+{{- $auth := dict "root" $ "name" "auth" }}
+{{- $tx := dict "root" $ "name" "transaction" }}
+---
+# Adresses des microservices pour le reverse-proxy Nginx du portail (noms de Services du chart).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "omnipay.fullname" $ctx }}-upstreams
+  labels:
+    {{- include "omnipay.labels" $ctx | nindent 4 }}
+data:
+  upstreams.conf: |
+    upstream auth_backend {
+        server {{ include "omnipay.fullname" $auth }}:{{ .Values.services.auth.service.port }};
+    }
+    upstream transaction_backend {
+        server {{ include "omnipay.fullname" $tx }}:{{ .Values.services.transaction.service.port }};
+    }
+{{- end }}

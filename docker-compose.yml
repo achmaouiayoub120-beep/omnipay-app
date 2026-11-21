@@ -29,6 +29,7 @@ services:
     container_name: omnipay-auth
     environment:
       SERVER_PORT: "8081"
+      OMNIPAY_JWT_SECRET: ${OMNIPAY_JWT_SECRET:?Definir OMNIPAY_JWT_SECRET dans .env (voir .env.example)}
     ports:
       - "8081:8081"
     networks:
@@ -47,6 +48,8 @@ services:
       DB_NAME: ${POSTGRES_DB:-omnipay_db}
       DB_USER: ${POSTGRES_USER:-omnipay}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD dans .env (voir .env.example)}
+      OMNIPAY_JWT_SECRET: ${OMNIPAY_JWT_SECRET:?Definir OMNIPAY_JWT_SECRET dans .env (voir .env.example)}
+      OMNIPAY_CHAOS_ENABLED: ${OMNIPAY_CHAOS_ENABLED:-false}
     ports:
       - "8082:8082"
     depends_on:
@@ -65,6 +68,30 @@ services:
       SERVER_PORT: "8083"
     ports:
       - "8083:8083"
+    networks:
+      - omnipay-network
+
+  # Portail web (Nginx non-root) : http://localhost:8080 ; reverse-proxy /api/auth -> auth, /api/transactions -> transaction
+  frontend:
+    build:
+      context: services/frontend
+    image: omnipay/frontend-service:local
+    container_name: omnipay-frontend
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8080:8080"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      transaction-service:
+        condition: service_healthy
     networks:
       - omnipay-network
 
