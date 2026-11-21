@@ -1,37 +1,31 @@
 package com.omnipay.auth;
 
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Authentification : les identifiants sont verifies dans la table users (mots de passe BCrypt).
- * Le "JWT" retourne reste un jeton factice a usage pedagogique uniquement.
- */
+/** Authentification : identifiants verifies dans la table users, jeton JWT signe avec les roles RBAC. */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
     public record LoginRequest(String username, String password) { }
 
-    public record LoginResponse(String token, String type, String status, String username) { }
+    public record LoginResponse(String token, String type, String status, String username,
+                                List<String> roles, long expiresAt) { }
 
-    private final JdbcClient jdbc;
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-    /** Hash factice : on le compare quand l'utilisateur n'existe pas, pour un temps de reponse constant. */
-    private final String unknownUserHash = encoder.encode(UUID.randomUUID().toString());
+    private final AuthService authService;
 
-    public AuthController(JdbcClient jdbc) {
-        this.jdbc = jdbc;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
 
     @PostMapping("/login")
@@ -39,16 +33,15 @@ public class AuthController {
         if (isBlank(request.username()) || isBlank(request.password())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "username and password are required");
         }
-        String hash = jdbc.sql("SELECT password_hash FROM users WHERE username = :username")
-                .param("username", request.username())
-                .query(String.class)
-                .optional()
-                .orElse(null);
-        boolean valid = encoder.matches(request.password(), hash != null ? hash : unknownUserHash) && hash != null;
-        if (!valid) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid credentials");
-        }
-        return new LoginResponse("simulated-jwt-" + UUID.randomUUID(), "Bearer", "SUCCESS", request.username());
+        AuthService.Session session = authService.login(request.username(), request.password());
+        return new LoginResponse(session.token(), "Bearer", "SUCCESS", session.username(), session.roles(),
+                session.expiresAt().getEpochSecond());
+    }
+
+    /** Renvoie les claims du jeton une fois signature, emetteur et expiration verifies (401 sinon). */
+    @GetMapping("/validate")
+    public AuthService.TokenClaims validate(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        return authService.validate(authorization);
     }
 
     @GetMapping("/health")

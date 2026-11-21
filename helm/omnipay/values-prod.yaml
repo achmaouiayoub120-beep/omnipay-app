@@ -28,3 +28,14 @@ autoscaling:
   minReplicas: 3
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
+
+# Portail web + Ingress (app.omnipay.local, omnipay.local)
+frontend:
+  enabled: true
+  replicaCount: 2
+ingress:
+  enabled: true
+
+# Injection de panne interdite en production
+chaos:
+  enabled: false
