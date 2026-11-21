@@ -1,0 +1,72 @@
+# Regles Falco bancaires OmniPay Zero-Trust (PCI-DSS 10.2 : detection des acces privilegies).
+# Perimetre : pods des namespaces omnipay-* (omnipay-dev, omnipay-recette, omnipay-prod).
+# Charge via : --set-file "customRules.falco-banking-rules\.yaml=infra/falco/falco-banking-rules.yaml"
+
+- macro: omnipay_banking_namespace
+  condition: (k8s.ns.name startswith "omnipay-")
+
+- list: omnipay_shell_binaries
+  items: [sh, bash, zsh, dash, ash, ksh, csh, tcsh]
+
+# Outils d'exploration reseau / d'exfiltration. `curl` et `wget` sont inclus : les sondes
+# de disponibilite utilisent httpGet (kubelet), jamais curl dans le conteneur.
+- list: omnipay_network_tools
+  items: [nmap, nc, ncat, netcat, tcpdump, curl, wget, socat]
+
+# Processus autorises a lire le token ServiceAccount (aucun microservice OmniPay n'en a besoin).
+# Valeur "_aucun_" volontaire : une liste Falco ne peut pas etre vide.
+- list: omnipay_service_account_readers
+  items: ["_aucun_"]
+
+- macro: omnipay_sensitive_file_read
+  condition: >
+    (fd.name = /etc/shadow
+    or fd.name startswith /root/.ssh
+    or fd.name startswith /var/run/secrets/kubernetes.io/serviceaccount
+    or fd.name startswith /run/secrets/kubernetes.io/serviceaccount)
+
+# --- Regle 1 (CRITICAL) : shell dans un pod bancaire ---------------------------
+- rule: Shell interactif dans un pod bancaire OmniPay
+  desc: >
+    Un shell (sh, bash, zsh...) est lance dans un conteneur d'un namespace omnipay-*.
+    Les microservices n'executent jamais de shell : c'est un signe de compromission
+    (RCE, kubectl exec malveillant).
+  condition: >
+    spawned_process and container and omnipay_banking_namespace
+    and proc.name in (omnipay_shell_binaries)
+  output: >
+    [ZERO-TRUST INTRUSION] Shell interactif lancé dans le pod bancaire %k8s.pod.name
+    (Utilisateur: %user.name, Commande: %proc.cmdline, Namespace: %k8s.ns.name,
+    Conteneur: %container.name)
+  priority: CRITICAL
+  tags: [omnipay, zero-trust, intrusion, pci_dss_10_2, mitre_execution, T1059]
+
+# --- Regle 2 (CRITICAL) : lecture de secrets / fichiers systeme sensibles -------
+- rule: Lecture de secret ou fichier systeme sensible dans un pod bancaire
+  desc: >
+    Ouverture en lecture de /etc/shadow, /root/.ssh ou du token ServiceAccount
+    Kubernetes par un processus non autorise.
+  condition: >
+    open_read and container and omnipay_banking_namespace
+    and omnipay_sensitive_file_read
+    and not proc.name in (omnipay_service_account_readers)
+  output: >
+    [ZERO-TRUST INTRUSION] Lecture de fichier sensible %fd.name dans le pod bancaire
+    %k8s.pod.name (Utilisateur: %user.name, Processus: %proc.name, Commande: %proc.cmdline,
+    Namespace: %k8s.ns.name)
+  priority: CRITICAL
+  tags: [omnipay, zero-trust, credential_access, pci_dss_3_5, mitre_credential_access, T1552]
+
+# --- Regle 3 (WARNING) : outils d'exploration / d'exfiltration reseau -------------
+- rule: Outil reseau d'exploration ou d'exfiltration dans un pod bancaire
+  desc: >
+    nmap, nc, netcat, tcpdump, curl... lances depuis un pod backend OmniPay :
+    reconnaissance du reseau interne ou exfiltration de donnees.
+  condition: >
+    spawned_process and container and omnipay_banking_namespace
+    and proc.name in (omnipay_network_tools)
+  output: >
+    [ZERO-TRUST INTRUSION] Outil reseau %proc.name lance dans le pod bancaire %k8s.pod.name
+    (Utilisateur: %user.name, Commande: %proc.cmdline, Namespace: %k8s.ns.name)
+  priority: WARNING
+  tags: [omnipay, zero-trust, discovery, exfiltration, pci_dss_10_2, mitre_discovery, T1046]

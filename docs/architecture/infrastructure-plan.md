@@ -30,7 +30,9 @@ Porteur : P3 - Plateforme, IaC, reseau et conformite.
 | 6443 | API Server Kubernetes | Hote | P3 |
 | 8088 | Jenkins CI (controleur) | Hote | P4 |
 | 30002 | Harbor Registry | NodePort | P4 |
-| 30080 | ArgoCD Server | NodePort | P4 |
+| 30003 | SonarQube | NodePort | P4 |
+| 30005 | ArgoCD Server | NodePort | P4 |
+| 30006 | Vault UI | NodePort | P3 |
 | 30300 | Grafana | NodePort | P5 |
 | 30900 | Prometheus | NodePort | P5 |
 | 5432 | PostgreSQL | Interne cluster (non expose) | P2 |

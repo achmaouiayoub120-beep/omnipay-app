@@ -71,16 +71,16 @@ kubectl -n "$NAMESPACE" get networkpolicy default-deny-all >/dev/null 2>&1 \
   || { echo "default-deny-all absente de ${NAMESPACE} : appliquer d'abord les politiques." >&2; exit 2; }
 
 echo "== Faux postgresql (label app.kubernetes.io/name=postgresql, ecoute 5432)"
-run_pod "${RUN_ID}-pg" postgresql "nc -ll -p 5432 -e /bin/true"
+run_pod "${RUN_ID}-pg" postgresql "while true; do echo ok | nc -l -p 5432; done"
 kubectl -n "$NAMESPACE" wait --for=condition=Ready "pod/${RUN_ID}-pg" --timeout=90s >/dev/null \
   || { echo "Le faux postgresql n'a pas demarre (image bloquee ? quota ?)" >&2; exit 2; }
 PG_IP="$(kubectl -n "$NAMESPACE" get pod "${RUN_ID}-pg" -o jsonpath='{.status.podIP}')"
 echo "   IP : ${PG_IP}"
 
 echo "== Execution des tests (timeout ${TIMEOUT_S}s par connexion)"
-run_pod "${RUN_ID}-a" transaction "nc -z -w ${TIMEOUT_S} ${PG_IP} 5432"
-run_pod "${RUN_ID}-b" notification "nc -z -w ${TIMEOUT_S} ${PG_IP} 5432"
-run_pod "${RUN_ID}-c" transaction "nc -z -w ${TIMEOUT_S} 1.1.1.1 443"
+run_pod "${RUN_ID}-a" transaction "echo | nc -w ${TIMEOUT_S} ${PG_IP} 5432"
+run_pod "${RUN_ID}-b" notification "echo | nc -w ${TIMEOUT_S} ${PG_IP} 5432"
+run_pod "${RUN_ID}-c" transaction "echo | nc -w ${TIMEOUT_S} 1.1.1.1 443"
 
 expect "Test A  transaction  -> postgresql:5432 (flux legitime)  " succes  "${RUN_ID}-a"
 expect "Test B  notification -> postgresql:5432 (flux illegitime)" blocage "${RUN_ID}-b"
