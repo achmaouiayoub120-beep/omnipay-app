@@ -1,10 +1,10 @@
 /**
- * OmniPay Zero-Trust — Application Frontend React 18 Ultra
- * Version : 1.0.0 (Semaine 4 — Final Release)
+ * OmniPay Zero-Trust — Portail web React 18 (Semaine 4)
  * Auteur : Amira Adolf (P2) & Équipe OmniPay ESTC
- * - Construit avec React 18 natif (sans build externe / 100% autonome hors-ligne).
- * - Conforme CSP strict ('self'), Zéro XSS, Zéro dépendance CDN.
- * - AudioContext Fintech, Canvas Confetti 2D, 3D Parallax Tilt, Télémétrie Zero-Trust.
+ * - React 18 natif local (aucun build, aucun CDN) ; conforme à la CSP stricte ('self').
+ * - Appelle l'API réelle : login JWT, solde, historique, virement avec X-Idempotency-Key.
+ * - Toasts vert (confirmé), rouge (rejeté), jaune (requête dupliquée / idempotence) ; rafraîchissement automatique.
+ * - Console jury : trafic réel (50 virements, double envoi, erreurs 500) et panne notification SIMULÉE.
  */
 
 (() => {
@@ -44,17 +44,50 @@
     }
   }
 
-  function createDemoJwt(user) {
-    const header = btoa(JSON.stringify({ alg: 'ES256', typ: 'JWT' }));
-    const roles = user === 'admin' ? ['ROLE_ADMIN', 'ROLE_USER'] : user === 'auditor' ? ['ROLE_AUDITOR'] : ['ROLE_USER'];
-    const payload = btoa(JSON.stringify({
-      sub: user,
-      roles,
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      iss: 'omnipay-auth-service'
-    }));
-    return `${header}.${payload}.mock-signature-sha256`;
+  /* ---------- API réelle (auth-service + transaction-service) ---------- */
+  // Derrière Nginx/Ingress : même origine (''). En développement local : accès direct aux ports 8081/8082.
+  const apiBase = { auth: '', tx: '' };
+  const REPLAY_STATUS = 'IDEMPOTENT_REPLAY';
+
+  async function request(service, path, { method = 'GET', body, headers = {}, token = null, timeout = 15000 } = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const hdr = { Accept: 'application/json', ...headers };
+      if (body !== undefined) hdr['Content-Type'] = 'application/json';
+      if (token) hdr.Authorization = `Bearer ${token}`;
+      const res = await fetch(apiBase[service] + path, {
+        method, headers: hdr, signal: controller.signal,
+        body: body === undefined ? undefined : JSON.stringify(body)
+      });
+      let data = null;
+      try { data = await res.json(); } catch { /* corps vide */ }
+      return { ok: res.ok, status: res.status, data };
+    } catch {
+      return { ok: false, status: 0, data: null };
+    } finally {
+      clearTimeout(timer);
+    }
   }
+
+  /** Message utilisateur sécurisé : aucun détail interne (pile, SQL, message brut du serveur) n'est affiché. */
+  function errorMessage(status) {
+    switch (status) {
+      case 0: return 'Réseau indisponible ou délai dépassé. Réessayez : la même clé d\'idempotence évite tout double prélèvement.';
+      case 400: return 'Données invalides (compte, montant ou motif).';
+      case 401: return 'Identifiants invalides ou session expirée.';
+      case 403: return 'Action refusée pour votre rôle ou pour ce compte.';
+      case 404: return 'Compte destinataire introuvable.';
+      default: return status >= 500
+        ? `Erreur serveur (${status}). Réessayez sans risque : la clé d'idempotence est conservée.`
+        : `Erreur (${status}).`;
+    }
+  }
+
+  const mapTransaction = (t) => ({
+    id: t.id, timestamp: t.createdAt, sourceAccount: t.sourceAccount, targetAccount: t.targetAccount,
+    amount: Number(t.amount), reason: t.reason || 'Virement bancaire', status: t.status
+  });
 
   /* ===========================================================================
    * 2. MOTEUR SONORE FINTECH (Web Audio API)
@@ -193,8 +226,25 @@
     const [amount, setAmount] = useState('');
     const [reason, setReason] = useState('');
     const [idempotencyKey, setIdempotencyKey] = useState(uuid());
-    const [isTransferring, setIsTransferring] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0); // requêtes de virement en vol (clics répétés inclus)
     const [formError, setFormError] = useState('');
+    // Une clé d'idempotence par intention de virement : tous les clics sur la même saisie réutilisent la même clé.
+    const intentRef = useRef({ fingerprint: '', key: '' });
+    const tokenRef = useRef(token);
+    tokenRef.current = token;
+
+    // Connexion
+    const [loginUser, setLoginUser] = useState('alice');
+    const [loginPass, setLoginPass] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+    // Démo jury
+    const [notifOutage, setNotifOutage] = useState(false); // panne simulée du notification-service
+    const notifOutageRef = useRef(false);
+    notifOutageRef.current = notifOutage;
+    const [juryBusy, setJuryBusy] = useState('');
+    const [lastRefresh, setLastRefresh] = useState('');
 
     // Feedback
     const [toasts, setToasts] = useState([]);
@@ -278,43 +328,61 @@
         try {
           const res = await fetch('/api/auth/health', { cache: 'no-store' });
           if (res.ok) {
-            setApiStatus('API Connectée : Ingress HTTPS (TLS 1.3 Strict)');
+            setApiStatus('API connectée : via /api (proxy Nginx / Ingress)');
             return;
           }
         } catch {}
         try {
-          const res2 = await fetch('http://localhost:8081/api/auth/health', { cache: 'no-store' });
+          const res2 = await fetch(`${LOCAL_BACKENDS.auth}/api/auth/health`, { cache: 'no-store' });
           if (res2.ok) {
-            setApiStatus('API Connectée : Direct localhost:8081/8082');
+            apiBase.auth = LOCAL_BACKENDS.auth;
+            apiBase.tx = LOCAL_BACKENDS.tx;
+            setApiStatus('API connectée : accès direct localhost:8081 / 8082');
             return;
           }
         } catch {}
-        setApiStatus('API : Mode Simulation Locale Autonome');
+        setApiStatus('API injoignable : démarrez les microservices (docker compose up)');
       }
       probe();
     }, []);
 
     // Refresh Data on Token change
-    const refreshData = useCallback(async (activeUser = user) => {
-      if (!token) return;
-      // Simulation réaliste selon utilisateur
-      const baseBal = activeUser === 'alice' ? 2500.00 : activeUser === 'bob' ? 800.00 : 15420.50;
-      const accId = `ACC-${(activeUser || 'ADMIN').toUpperCase()}-001`;
-
-      setAccounts([{ accountId: accId, balance: baseBal }]);
-      setTransactions([
-        { id: uuid(), timestamp: new Date(Date.now() - 3600000).toISOString(), sourceAccount: 'ACC-EXT-999', targetAccount: accId, amount: 1200.00, reason: 'Virement Salaire ESTC', status: 'COMPLETED' },
-        { id: uuid(), timestamp: new Date(Date.now() - 7200000).toISOString(), sourceAccount: accId, targetAccount: 'ACC-BOB-002', amount: 45.00, reason: 'Remboursement Déjeuner', status: 'COMPLETED' },
-        { id: uuid(), timestamp: new Date(Date.now() - 86400000).toISOString(), sourceAccount: accId, targetAccount: 'ACC-ESTC-003', amount: 250.00, reason: 'Cotisation Labo DevOps', status: 'COMPLETED' }
+    // Solde + historique réels (GET /api/transactions/accounts/me et GET /api/transactions).
+    // Appelé après chaque virement (succès, rejeu ou rejet) et toutes les 10 s : aucun rechargement de page.
+    const refreshData = useCallback(async () => {
+      const current = tokenRef.current;
+      if (!current) return null;
+      const [acc, hist] = await Promise.all([
+        request('tx', '/api/transactions/accounts/me', { token: current }),
+        request('tx', '/api/transactions', { token: current })
       ]);
-    }, [token, user]);
+      if (acc.status === 401 || hist.status === 401) {
+        logout('Session expirée ou jeton refusé : reconnectez-vous.');
+        return null;
+      }
+      let freshAccounts = null;
+      if (acc.ok && Array.isArray(acc.data)) {
+        freshAccounts = acc.data.map((a) => ({ accountId: a.accountId, balance: Number(a.balance), currency: a.currency }));
+        setAccounts(freshAccounts);
+      }
+      if (hist.ok && Array.isArray(hist.data)) setTransactions(hist.data.map(mapTransaction));
+      if (acc.ok || hist.ok) setLastRefresh(new Date().toLocaleTimeString('fr-FR'));
+      return freshAccounts;
+    }, []);
 
     useEffect(() => {
-      if (token && user) refreshData(user);
+      if (!token || !user) return undefined;
+      refreshData();
+      const timer = setInterval(refreshData, 10000);
+      return () => clearInterval(timer);
     }, [token, user, refreshData]);
 
     const logout = (msg) => {
       setToken(null);
+      setAccounts([]);
+      setTransactions([]);
+      setLoginPass('');
+      intentRef.current = { fingerprint: '', key: '' };
       sessionStorage.removeItem(TOKEN_KEY);
       if (msg) addToast('warn', 'Déconnexion', msg);
     };
@@ -345,61 +413,143 @@
     };
 
     // Fast Login Switcher
-    const loginAs = (u, p = 'password') => {
+    // Raccourci démo : pré-remplit l'identifiant (le mot de passe n'est jamais stocké dans le code du portail).
+    const pickDemoUser = (u) => {
       playSound('click', soundEnabled);
-      const fakeToken = createDemoJwt(u);
-      setToken(fakeToken);
-      addToast('ok', 'Connexion Rapide Démo', `Session ouverte en tant que ${u}.`);
-      addJuryLog(`Connexion profil : ${u} (Rôles : ${u === 'admin' ? 'ROLE_ADMIN' : 'ROLE_USER'})`, 'info');
+      setLoginUser(u);
+      setLoginError('');
+      if (token) logout();
     };
 
-    // Transfer Submit Handler
-    const handleTransferSubmit = (e) => {
+    // Authentification réelle : POST /api/auth/login -> JWT HS256 signé par auth-service.
+    const handleLogin = async (e) => {
+      e.preventDefault();
+      const username = loginUser.trim();
+      if (!username || !loginPass) {
+        setLoginError('Identifiant et mot de passe requis.');
+        playSound('error', soundEnabled);
+        return;
+      }
+      setIsLoggingIn(true);
+      setLoginError('');
+      const r = await request('auth', '/api/auth/login', { method: 'POST', body: { username, password: loginPass } });
+      setIsLoggingIn(false);
+      if (r.ok && r.data && r.data.token) {
+        setLoginPass('');
+        setToken(r.data.token);
+        addToast('ok', 'Connexion réussie', `Session ouverte en tant que ${r.data.username} (${(r.data.roles || []).join(', ')}).`);
+        addJuryLog(`POST /api/auth/login -> HTTP 200 : JWT émis pour ${r.data.username}`, 'info');
+      } else {
+        const msg = r.status === 401 ? 'Identifiants invalides.' : r.status === 429 ? 'Trop de tentatives : patientez quelques secondes.' : errorMessage(r.status);
+        setLoginError(msg);
+        addToast('ko', 'Connexion refusée', msg);
+        addJuryLog(`POST /api/auth/login -> HTTP ${r.status}`, 'err');
+      }
+    };
+
+    // Montant : nombre positif, 2 décimales maximum (virgule ou point).
+    const parseAmount = (raw) => {
+      const txt = String(raw).trim().replace(',', '.');
+      return /^\d+(\.\d{1,2})?$/.test(txt) && Number(txt) > 0 ? Number(txt) : null;
+    };
+
+    const rotateKey = (usedKey) => {
+      if (intentRef.current.key !== usedKey) return; // la clé a déjà été renouvelée (réponses multiples) ou une autre saisie est en cours
+      const fresh = uuid();
+      intentRef.current = { fingerprint: '', key: fresh };
+      setIdempotencyKey(fresh);
+    };
+
+    // Virement réel : POST /api/transactions avec X-Idempotency-Key.
+    // Le bouton n'est volontairement PAS désactivé pendant l'envoi : N clics sur la même saisie envoient N requêtes
+    // portant la MÊME clé ; le serveur n'en exécute qu'une et rejoue la réponse pour les autres (toast jaune).
+    const handleTransferSubmit = async (e) => {
       e.preventDefault();
       setFormError('');
-      const amt = parseFloat(amount.replace(',', '.'));
-      if (!targetAccount || isNaN(amt) || amt <= 0) {
-        setFormError('Veuillez renseigner un IBAN destinataire et un montant valide.');
+      const amt = parseAmount(amount);
+      const target = targetAccount.trim().toUpperCase();
+      if (!target || amt === null) {
+        setFormError('Renseignez un compte destinataire et un montant valide (nombre positif, 2 décimales maximum).');
         playSound('error', soundEnabled);
         return;
       }
 
-      const curAcc = accounts[0];
-      if (curAcc && amt > curAcc.balance) {
-        setFormError(`Solde insuffisant : disponible ${eur.format(curAcc.balance)} vs requis ${eur.format(amt)}.`);
-        playSound('error', soundEnabled);
-        return;
+      const fingerprint = `${target}|${amt.toFixed(2)}|${reason.trim()}`;
+      // Nouvelle intention (saisie différente) : slot vierge -> on adopte la clé affichée, sinon on en génère une.
+      // Même saisie (clics répétés, nouvelle tentative après erreur réseau) : la clé existante est réutilisée.
+      if (intentRef.current.fingerprint !== fingerprint) {
+        const slotIsFresh = intentRef.current.fingerprint === '';
+        intentRef.current = { fingerprint, key: slotIsFresh ? idempotencyKey : uuid() };
       }
+      const key = intentRef.current.key;
+      setIdempotencyKey(key);
 
-      setIsTransferring(true);
+      setPendingCount((c) => c + 1);
       playSound('click', soundEnabled);
-      addJuryLog(`POST /api/transactions (Key: ${idempotencyKey.slice(0, 8)}) -> Envoi ${eur.format(amt)} vers ${targetAccount}`, 'info');
+      addJuryLog(`POST /api/transactions (X-Idempotency-Key: ${key.slice(0, 8)}…) -> ${eur.format(amt)} vers ${target}`, 'info');
 
-      setTimeout(() => {
-        setIsTransferring(false);
-        burstConfetti();
-        addToast('ok', 'Virement Validé Zero-Trust !', `${eur.format(amt)} envoyés vers ${targetAccount}.`);
-        addJuryLog(`HTTP 200 OK : Transaction validée et inscrite dans le grand livre.`, 'info');
+      const r = await request('tx', '/api/transactions', {
+        method: 'POST',
+        token: tokenRef.current,
+        headers: { 'X-Idempotency-Key': key },
+        body: { targetAccount: target, amount: amt, reason: reason.trim() || undefined }
+      });
+      setPendingCount((c) => Math.max(0, c - 1));
 
-        if (curAcc) curAcc.balance -= amt;
-        setTransactions(prev => [{
-          id: idempotencyKey,
-          timestamp: new Date().toISOString(),
-          sourceAccount: curAcc ? curAcc.accountId : 'ACC-ME',
-          targetAccount,
-          amount: amt,
-          reason: reason || 'Virement bancaire',
-          status: 'COMPLETED'
-        }, ...prev]);
-
+      if (r.ok && r.data) {
+        const txId = r.data.transactionId;
+        if (r.data.status === REPLAY_STATUS) {
+          // Jaune : requête dupliquée interceptée par l'idempotence.
+          addToast('warn', 'Requête dupliquée interceptée', `Transaction déjà enregistrée, pas de double prélèvement (id ${txId}).`);
+          addJuryLog(`HTTP 200 IDEMPOTENT_REPLAY : clé ${key.slice(0, 8)}… déjà traitée, réponse d'origine rejouée (id ${txId}).`, 'warn');
+        } else {
+          // Vert : virement confirmé avec l'identifiant de transaction.
+          burstConfetti();
+          addToast('ok', 'Virement confirmé', `${eur.format(amt)} envoyés vers ${target}. Transaction ${txId}.`);
+          addJuryLog(`HTTP 200 SUCCESS : transaction ${txId} validée, débit et crédit dans une seule transaction SQL.`, 'info');
+          if (notifOutageRef.current) {
+            addToast('info', 'Notification indisponible (panne simulée)', 'Le virement reste validé : le notification-service est découplé du chemin de paiement.');
+            addJuryLog('notification-service injoignable (panne simulée) : virement NON impacté, notification à rejouer.', 'warn');
+          }
+        }
         setAmount('');
         setReason('');
-        setIdempotencyKey(uuid());
-      }, 350);
+        rotateKey(key);
+        await refreshData();
+        return;
+      }
+
+      // Rouge : rejet explicite.
+      let message = errorMessage(r.status);
+      if (r.status === 422) {
+        const fresh = await refreshData();
+        const available = fresh && fresh[0] ? fresh[0].balance : accounts[0]?.balance;
+        message = available === undefined
+          ? 'Fonds insuffisants pour ce virement.'
+          : `Fonds insuffisants : solde disponible ${eur.format(available)} vs montant requis ${eur.format(amt)}`;
+      }
+      setFormError(message);
+      addToast('ko', 'Virement rejeté', message);
+      addJuryLog(`HTTP ${r.status} : virement rejeté (${r.status === 422 ? 'fonds insuffisants' : 'voir toast'}), aucun débit.`, 'err');
+      if (r.status >= 400 && r.status < 500) rotateKey(key); // rejet définitif : nouvelle intention = nouvelle clé
+      if (r.status !== 422) refreshData();
     };
+
 
     // Render Helpers
     const currentBalance = useMemo(() => accounts.reduce((acc, a) => acc + (a.balance || 0), 0), [accounts]);
+    // Entrées / sorties calculées sur l'historique réel du compte connecté.
+    const totals = useMemo(() => {
+      const myId = accounts[0]?.accountId;
+      return transactions.reduce((acc, tx) => {
+        if (tx.status !== 'SUCCESS') return acc;
+        if (tx.sourceAccount === myId) acc.expense += tx.amount;
+        else if (tx.targetAccount === myId) acc.income += tx.amount;
+        return acc;
+      }, { income: 0, expense: 0 });
+    }, [transactions, accounts]);
+    const outShare = totals.expense + totals.income > 0
+      ? Math.round((totals.expense / (totals.expense + totals.income)) * 100) : 0;
     const filteredTx = useMemo(() => {
       const myId = accounts[0]?.accountId;
       return transactions.filter(tx => {
@@ -487,43 +637,43 @@
      * =========================================================================== */
     const renderLogin = () => {
       return h('section', { className: 'login-wrap' },
-        h('form', {
-          className: 'glass login-card',
-          onSubmit: (e) => {
-            e.preventDefault();
-            const u = e.target.username.value.trim() || 'alice';
-            loginAs(u);
-          }
-        },
+        h('form', { className: 'glass login-card', onSubmit: handleLogin, autoComplete: 'off' },
           h('div', { className: 'login-hero' },
             h('div', { className: 'logo-3d-wrap' },
               h('img', { className: 'login-logo', src: 'assets/logo.jpg', alt: 'OmniPay Zero-Trust', width: 130, height: 130 }),
               h('div', { className: 'logo-glow' })
             ),
             h('h1', null, 'Accès Sécurisé Néobanque'),
-            h('p', { className: 'muted' }, 'Authentification forte par jeton JWT signé (ES256). Posture Zero-Trust : chaque transaction est isolée et vérifiée.')
+            h('p', { className: 'muted' }, 'Authentification par jeton JWT signé (HS256) émis par auth-service. Posture Zero-Trust : chaque requête est revérifiée.')
           ),
           h('div', { className: 'form-group' },
-            h('label', null, 'Identifiant bancaire'),
-            h('input', { name: 'username', type: 'text', defaultValue: 'alice', placeholder: 'alice, bob ou admin' })
+            h('label', { htmlFor: 'login-username' }, 'Identifiant bancaire'),
+            h('input', {
+              id: 'login-username', name: 'username', type: 'text', value: loginUser, autoCapitalize: 'off', spellCheck: false,
+              onChange: (e) => setLoginUser(e.target.value), placeholder: 'alice, bob ou admin'
+            })
           ),
           h('div', { className: 'form-group' },
-            h('label', null, 'Mot de passe chiffré'),
-            h('input', { name: 'password', type: 'password', defaultValue: 'password', placeholder: '••••••••••••' })
+            h('label', { htmlFor: 'login-password' }, 'Mot de passe'),
+            h('input', {
+              id: 'login-password', name: 'password', type: 'password', value: loginPass, autoComplete: 'current-password',
+              onChange: (e) => setLoginPass(e.target.value), placeholder: '••••••••••••'
+            })
           ),
-          // Raccourcis Démo
+          // Raccourcis démo : pré-remplissent l'identifiant ; le mot de passe de démo est celui du dépôt (voir la doc), jamais codé ici.
           h('div', { className: 'demo-accounts' },
-            h('span', { className: 'demo-label' }, 'Comptes Démo Soutenance (1-Clic) :'),
+            h('span', { className: 'demo-label' }, 'Comptes démo (identifiant pré-rempli) :'),
             h('div', { className: 'demo-chips' },
-              h('button', { type: 'button', className: 'chip', onClick: () => loginAs('alice') }, '👤 Alice (2 500 €)'),
-              h('button', { type: 'button', className: 'chip', onClick: () => loginAs('bob') }, '👤 Bob (800 €)'),
-              h('button', { type: 'button', className: 'chip', onClick: () => loginAs('admin') }, '👑 Admin'),
-              h('button', { type: 'button', className: 'chip', onClick: () => loginAs('auditor') }, '🛡️ Auditeur')
+              ['alice', 'bob', 'admin', 'auditor'].map((u) =>
+                h('button', { key: u, type: 'button', className: 'chip', onClick: () => pickDemoUser(u) }, u)
+              )
             )
           ),
-          h('button', { className: 'btn btn-primary btn-block btn-lg', type: 'submit' }, 'Se connecter au coffre-fort'),
+          loginError && h('p', { className: 'form-error', role: 'alert' }, loginError),
+          h('button', { className: 'btn btn-primary btn-block btn-lg', type: 'submit', disabled: isLoggingIn },
+            isLoggingIn ? 'Authentification…' : 'Se connecter'),
           h('div', { className: 'login-badges' },
-            h('span', null, '🔒 Chiffrement AES-256'),
+            h('span', null, '🔒 JWT stateless'),
             h('span', null, '⚡ Vault Secrets'),
             h('span', null, '🛡️ eBPF Falco')
           )
@@ -659,7 +809,7 @@
               h('strong', { className: 'stat-value' }, eur.format(currentBalance)),
               h('div', { className: 'stat-footer' },
                 h('span', { className: 'stat-account-pill' }, accounts[0]?.accountId || 'Compte —'),
-                h('span', { className: 'stat-trend pos' }, '↑ +14.2% ce mois')
+                h('span', { className: 'stat-trend pos' }, lastRefresh ? `Actualisé à ${lastRefresh}` : 'Synchronisation…')
               ),
               // Sparkline SVG
               h('div', { className: 'sparkline-wrap' },
@@ -669,14 +819,14 @@
               )
             ),
             h('article', { className: 'glass stat' },
-              h('span', { className: 'muted' }, 'Revenus mensuels'),
-              h('strong', { className: 'stat-value pos' }, '+ 1 200,00 €'),
-              h('small', { className: 'muted' }, 'Crédits et virements entrants')
+              h('span', { className: 'muted' }, 'Entrées (historique affiché)'),
+              h('strong', { className: 'stat-value pos' }, `+ ${eur.format(totals.income)}`),
+              h('small', { className: 'muted' }, 'Virements reçus (100 dernières opérations)')
             ),
             h('article', { className: 'glass stat' },
-              h('span', { className: 'muted' }, 'Dépenses mensuelles'),
-              h('strong', { className: 'stat-value neg' }, '- 295,00 €'),
-              h('small', { className: 'muted' }, 'Opérations et paiements')
+              h('span', { className: 'muted' }, 'Sorties (historique affiché)'),
+              h('strong', { className: 'stat-value neg' }, `- ${eur.format(totals.expense)}`),
+              h('small', { className: 'muted' }, 'Virements émis (100 dernières opérations)')
             ),
             h('article', { className: 'glass stat stat-shield' },
               h('span', { className: 'muted' }, 'Certification de Sécurité'),
@@ -696,11 +846,11 @@
           ),
           h('div', { className: 'recipients-carousel' },
             [
-              { name: 'Bob Martin', iban: 'ACC-BOB-002', avatarClass: 'avatar-bob', initials: 'BM' },
-              { name: 'Alice Dupont', iban: 'ACC-ALICE-001', avatarClass: 'avatar-alice', initials: 'AD' },
-              { name: 'ESTC Treasury', iban: 'ACC-ESTC-003', avatarClass: 'avatar-estc', initials: 'ES' },
-              { name: 'Réserve SRE', iban: 'ACC-SRE-500', avatarClass: 'avatar-sre', initials: 'SR' }
-            ].map(contact =>
+              { name: 'Bob', iban: 'ACC-BOB-002', avatarClass: 'avatar-bob', initials: 'BO' },
+              { name: 'Alice', iban: 'ACC-ALICE-001', avatarClass: 'avatar-alice', initials: 'AL' },
+              { name: 'Utilisateur démo', iban: 'ACC-USER-003', avatarClass: 'avatar-estc', initials: 'US' },
+              { name: 'Administrateur', iban: 'ACC-ADMIN-004', avatarClass: 'avatar-sre', initials: 'AD' }
+            ].filter(contact => contact.iban !== accounts[0]?.accountId).map(contact =>
               h('button', {
                 key: contact.iban,
                 type: 'button',
@@ -776,12 +926,15 @@
               h('code', null, idempotencyKey)
             ),
             formError && h('p', { className: 'form-error' }, formError),
+            // Pas de `disabled` volontaire : des clics répétés envoient la MÊME clé et le serveur dédoublonne.
             h('button', {
+              id: 'btn-transfer',
               className: 'btn btn-primary btn-block btn-lg',
               type: 'submit',
-              disabled: isTransferring
-            }, isTransferring ? 'Validation en cours...' : '🚀 Confirmer le virement sécurisé'),
-            h('p', { className: 'fineprint muted' }, 'Protection contre le double-débit : en cas d\'interruption réseau, le serveur garantit l\'unicité du débit.')
+              disabled: roles.length > 0 && !roles.includes('ROLE_USER') && !roles.includes('ROLE_ADMIN'),
+              'aria-busy': pendingCount > 0
+            }, pendingCount > 0 ? `Validation en cours… (${pendingCount} requête${pendingCount > 1 ? 's' : ''}, même clé)` : '🚀 Confirmer le virement sécurisé'),
+            h('p', { className: 'fineprint muted' }, 'Protection contre le double-débit : la clé X-Idempotency-Key est enregistrée en base avec le virement ; un clic répété ou un rejeu réseau ne débite qu\'une fois.')
           ),
           // Historique & Graphique
           h('section', { className: 'glass panel history-panel' },
@@ -818,21 +971,20 @@
               h('div', { className: 'analytics-wrap' },
                 h('div', { className: 'donut-chart-wrap' },
                   h('svg', { className: 'donut-chart', viewBox: '0 0 100 100' },
-                    h('circle', { cx: '50', cy: '50', r: '15.915', fill: 'transparent', stroke: '#3b82ff', strokeWidth: '5.5', strokeDasharray: '45 55', strokeDashoffset: '0' }),
-                    h('circle', { cx: '50', cy: '50', r: '15.915', fill: 'transparent', stroke: '#27e08f', strokeWidth: '5.5', strokeDasharray: '30 70', strokeDashoffset: '-45' }),
-                    h('circle', { cx: '50', cy: '50', r: '15.915', fill: 'transparent', stroke: '#f59e0b', strokeWidth: '5.5', strokeDasharray: '25 75', strokeDashoffset: '-75' })
+                    h('circle', { cx: '50', cy: '50', r: '15.915', fill: 'transparent', stroke: '#27e08f', strokeWidth: '5.5', strokeDasharray: '100 0', strokeDashoffset: '0' }),
+                    h('circle', { cx: '50', cy: '50', r: '15.915', fill: 'transparent', stroke: '#ef4444', strokeWidth: '5.5', strokeDasharray: `${outShare} ${100 - outShare}`, strokeDashoffset: '0' })
                   ),
                   h('div', { className: 'donut-center-text' },
-                    h('small', { className: 'muted' }, 'Total Dépenses'),
-                    h('strong', null, '850,00 €')
+                    h('small', { className: 'muted' }, 'Total sorties'),
+                    h('strong', null, eur.format(totals.expense))
                   )
                 ),
                 h('div', { className: 'donut-legend' },
-                  h('div', { className: 'legend-item' }, h('span', { className: 'legend-color', style: { background: '#3b82ff' } }), h('span', null, 'Virements Sortants'), h('strong', null, '45%')),
-                  h('div', { className: 'legend-item' }, h('span', { className: 'legend-color', style: { background: '#27e08f' } }), h('span', null, 'Services & Opérations'), h('strong', null, '30%')),
-                  h('div', { className: 'legend-item' }, h('span', { className: 'legend-color', style: { background: '#f59e0b' } }), h('span', null, 'Assurances & Épargne'), h('strong', null, '25%'))
+                  h('div', { className: 'legend-item' }, h('span', { className: 'legend-color', style: { background: '#ef4444' } }), h('span', null, 'Virements sortants'), h('strong', null, `${outShare}%`)),
+                  h('div', { className: 'legend-item' }, h('span', { className: 'legend-color', style: { background: '#27e08f' } }), h('span', null, 'Virements entrants'), h('strong', null, `${100 - outShare}%`))
                 )
               ) :
+
               // Vue Table des transactions
               h('div', { className: 'table-wrap' },
                 h('table', { className: 'tx-table' },
@@ -878,9 +1030,12 @@
           h('div', { className: 'hud-section' },
             h('h3', null, 'Santé & Latence des Microservices'),
             h('div', { className: 'hud-services' },
-              h('div', { className: 'hud-srv' }, h('span', { className: 'srv-dot ok' }), h('strong', null, 'Auth-Service :'), h('span', { className: 'srv-val' }, '12 ms (JWT ES256)')),
-              h('div', { className: 'hud-srv' }, h('span', { className: 'srv-dot ok' }), h('strong', null, 'Transaction-Service :'), h('span', { className: 'srv-val' }, '18 ms (PostgreSQL HA)')),
-              h('div', { className: 'hud-srv' }, h('span', { className: 'srv-dot ok' }), h('strong', null, 'Notification-Service :'), h('span', { className: 'srv-val' }, '8 ms (Async Queue)')),
+              h('div', { className: 'hud-srv' }, h('span', { className: 'srv-dot ok' }), h('strong', null, 'Auth-Service :'), h('span', { className: 'srv-val' }, 'JWT HS256 stateless (port 8081)')),
+              h('div', { className: 'hud-srv' }, h('span', { className: 'srv-dot ok' }), h('strong', null, 'Transaction-Service :'), h('span', { className: 'srv-val' }, 'PostgreSQL + Flyway, idempotence en base (port 8082)')),
+              h('div', { className: 'hud-srv' },
+                h('span', { className: `srv-dot ${notifOutage ? 'ko' : 'ok'}` }),
+                h('strong', null, 'Notification-Service :'),
+                h('span', { className: 'srv-val' }, notifOutage ? 'HORS SERVICE (panne simulée) : virements non impactés' : 'actif (envoi simulé, port 8083)')),
               h('div', { className: 'hud-srv' }, h('span', { className: 'srv-dot ok' }), h('strong', null, 'Vault Secret Store :'), h('span', { className: 'srv-val' }, 'NodePort 30006 (Sealed: No)'))
             )
           ),
@@ -900,6 +1055,86 @@
     /* ===========================================================================
      * RENDU : PANNEAU OUTILS JURY SOUTENANCE
      * =========================================================================== */
+    const juryRequestTx = (body, headers = {}) =>
+      request('tx', '/api/transactions', { method: 'POST', token: tokenRef.current, body, headers });
+
+    const countBy = (items, pick) => items.reduce((acc, it) => { const k = pick(it); acc[k] = (acc[k] || 0) + 1; return acc; }, {});
+    const summarize = (counts) => Object.entries(counts).map(([k, v]) => `${k}×${v}`).join(' · ');
+
+    // Panne du notification-service : SIMULATION côté portail (le transaction-service n'appelle jamais le notification-service,
+    // donc une vraie coupure n'a aucun effet sur le virement). Preuve réelle possible : `docker compose stop notification-service`.
+    const toggleNotifOutage = () => {
+      const next = !notifOutage;
+      setNotifOutage(next);
+      playSound(next ? 'error' : 'click', soundEnabled);
+      if (next) {
+        addToast('ko', 'Panne injectée : notification-service', 'Service de notification coupé (simulation). Lancez un virement : il reste validé.');
+        addJuryLog('PANNE INJECTÉE : notification-service HORS SERVICE (simulation). Le chemin de paiement n\'en dépend pas.', 'err');
+      } else {
+        addToast('ok', 'Notification rétablie', 'Le notification-service est de nouveau disponible.');
+        addJuryLog('notification-service rétabli.', 'info');
+      }
+    };
+
+    // Tir réel : 50 virements de 0,50 € (5 en parallèle) avec une clé d'idempotence unique chacun.
+    const injectTransactions = async () => {
+      if (juryBusy) return;
+      const target = (targetAccount || '').trim().toUpperCase();
+      if (!target) { addToast('ko', 'Injection impossible', 'Renseignez un compte destinataire.'); return; }
+      setJuryBusy('inject');
+      const started = performance.now();
+      const results = [];
+      let next = 0;
+      const lane = async () => {
+        while (next < 50) {
+          const i = next++;
+          results[i] = await juryRequestTx({ targetAccount: target, amount: 0.5, reason: `Démo jury #${i + 1}` }, { 'X-Idempotency-Key': uuid() });
+        }
+      };
+      await Promise.all(Array.from({ length: 5 }, lane));
+      const seconds = (performance.now() - started) / 1000;
+      const ok = results.filter((r) => r.ok).length;
+      addJuryLog(`50 virements de 0,50 € vers ${target} : ${ok} validés — HTTP ${summarize(countBy(results, (r) => r.status))} — ${seconds.toFixed(1)} s`, ok === 50 ? 'info' : 'err');
+      addToast(ok === 50 ? 'ok' : 'ko', 'Injection terminée', `${ok}/50 transactions validées en ${seconds.toFixed(1)} s. Surveillez Grafana.`);
+      setJuryBusy('');
+      await refreshData();
+    };
+
+    // Double envoi réel et simultané de la même clé : un SUCCESS + un IDEMPOTENT_REPLAY, un seul débit.
+    const testIdempotency = async () => {
+      if (juryBusy) return;
+      const target = (targetAccount || '').trim().toUpperCase();
+      if (!target) { addToast('ko', 'Test impossible', 'Renseignez un compte destinataire.'); return; }
+      setJuryBusy('idem');
+      const key = uuid();
+      const send = () => juryRequestTx({ targetAccount: target, amount: 1, reason: 'Test idempotence' }, { 'X-Idempotency-Key': key });
+      const results = await Promise.all([send(), send()]);
+      const counts = countBy(results, (r) => (r.data && r.data.status) || `HTTP ${r.status}`);
+      const single = (counts.SUCCESS || 0) === 1 && (counts[REPLAY_STATUS] || 0) === 1;
+      addJuryLog(`Double envoi de la clé ${key.slice(0, 8)}… : ${summarize(counts)}${single ? ' -> un seul débit de 1,00 €' : ''}`, single ? 'info' : 'warn');
+      if (single) addToast('warn', 'Requête dupliquée interceptée', 'Transaction déjà enregistrée, pas de double prélèvement.');
+      else addToast('info', 'Idempotence', `Résultat : ${summarize(counts)}`);
+      setJuryBusy('');
+      await refreshData();
+    };
+
+    // Chaos réel : nécessite OMNIPAY_CHAOS_ENABLED=true côté transaction-service et le rôle ADMIN.
+    const simulateServerErrors = async () => {
+      if (juryBusy) return;
+      setJuryBusy('chaos');
+      const results = await Promise.all(Array.from({ length: 20 }, () =>
+        juryRequestTx({ targetAccount: (targetAccount || '').trim().toUpperCase() || 'ACC-BOB-002', amount: 1 }, { 'X-Chaos-Fail': 'true' })));
+      const errors = results.filter((r) => r.status === 500).length;
+      if (errors > 0) {
+        addJuryLog(`${errors} erreurs HTTP 500 injectées (aucun virement exécuté) — HTTP ${summarize(countBy(results, (r) => r.status))}`, 'err');
+        addToast('ko', 'Pannes simulées', `${errors} réponses HTTP 500 générées : le taux d'erreur monte dans Prometheus.`);
+      } else {
+        addJuryLog(`Injection refusée — HTTP ${summarize(countBy(results, (r) => r.status))}. Requiert OMNIPAY_CHAOS_ENABLED=true et ROLE_ADMIN.`, 'warn');
+        addToast('info', 'Injection désactivée', 'OMNIPAY_CHAOS_ENABLED=false sur cet environnement, ou rôle insuffisant.');
+      }
+      setJuryBusy('');
+    };
+
     const renderJuryPanel = () => {
       if (!isJuryOpen) return null;
       return h('aside', { className: 'jury glass' },
@@ -908,56 +1143,33 @@
             h('span', { className: 'jury-icon' }, '⚡'),
             h('div', null,
               h('h2', null, 'Console Démo Soutenance'),
-              h('small', { className: 'muted' }, 'Simulation de trafic, chaos & audit en direct')
+              h('small', { className: 'muted' }, 'Trafic réel, chaos & résilience en direct')
             )
           ),
           h('button', { className: 'btn btn-icon', type: 'button', onClick: () => setIsJuryOpen(false) }, '✕')
         ),
-        // Switcher rapide d'utilisateur
         h('div', { className: 'jury-group' },
-          h('label', { className: 'jury-label' }, 'Changement rapide d\'utilisateur (Test RBAC) :'),
+          h('label', { className: 'jury-label' }, 'Changer d\'utilisateur (test RBAC) : déconnexion + identifiant pré-rempli'),
           h('div', { className: 'jury-user-switch' },
-            h('button', { type: 'button', className: 'btn btn-sm btn-ghost', onClick: () => loginAs('alice') }, 'Alice'),
-            h('button', { type: 'button', className: 'btn btn-sm btn-ghost', onClick: () => loginAs('bob') }, 'Bob'),
-            h('button', { type: 'button', className: 'btn btn-sm btn-ghost', onClick: () => loginAs('admin') }, 'Admin'),
-            h('button', { type: 'button', className: 'btn btn-sm btn-ghost', onClick: () => loginAs('auditor') }, 'Auditeur')
+            ['alice', 'bob', 'admin', 'auditor'].map((u) =>
+              h('button', { key: u, type: 'button', className: 'btn btn-sm btn-ghost', onClick: () => pickDemoUser(u) }, u))
           )
         ),
         h('div', { className: 'jury-actions' },
           h('button', {
-            className: 'btn btn-primary btn-block',
+            id: 'jury-notif-outage',
+            className: `btn btn-block ${notifOutage ? 'btn-primary' : 'btn-danger'}`,
             type: 'button',
-            onClick: () => {
-              playSound('success', soundEnabled);
-              addToast('ok', 'Tir de Charge k6', '50 requêtes envoyées vers /api/transactions.');
-              addJuryLog('k6 INJECTION : 50 transactions générées avec token JWT Bearer.', 'info');
-            }
-          }, '🚀 Injecter 50 Transactions k6'),
-          h('button', {
-            className: 'btn btn-block',
-            type: 'button',
-            onClick: () => {
-              playSound('click', soundEnabled);
-              addToast('ok', 'Idempotence Validée', '2 requêtes avec même clé : un seul débit constaté.');
-              addJuryLog('TEST IDEMPOTENCE : 2 requêtes parallèles avec même clé interceptées.', 'warn');
-            }
-          }, '🛡️ Tester l\'Idempotence (Double-Clic)'),
-          h('button', {
-            className: 'btn btn-danger btn-block',
-            type: 'button',
-            onClick: () => {
-              playSound('error', soundEnabled);
-              addToast('ko', 'Alerte SRE Déclenchée', 'Erreur 500 : Prometheus déclenche le Rollback automatique.');
-              addJuryLog('CHAOS INJECTÉ : Erreur 500 simulée sur Canary Rollout.', 'err');
-            }
-          }, '🚨 Simuler Erreur 500 (Canary Rollback)'),
-          h('button', {
-            className: 'btn btn-block',
-            type: 'button',
-            onClick: () => setIsJwtModalOpen(true)
-          }, '🔍 Inspecter le Jeton JWT Décodé')
+            onClick: toggleNotifOutage
+          }, notifOutage ? '🔔 Rétablir le Service Notification' : '🔕 Injecter Panne Notification'),
+          h('button', { id: 'jury-inject', className: 'btn btn-primary btn-block', type: 'button', disabled: !token || !!juryBusy, onClick: injectTransactions },
+            juryBusy === 'inject' ? 'Injection en cours…' : '🚀 Injecter 50 Transactions (0,50 €)'),
+          h('button', { id: 'jury-idem', className: 'btn btn-block', type: 'button', disabled: !token || !!juryBusy, onClick: testIdempotency },
+            '🛡️ Tester l\'Idempotence (double envoi)'),
+          h('button', { id: 'jury-chaos', className: 'btn btn-danger btn-block', type: 'button', disabled: !token || !!juryBusy, onClick: simulateServerErrors },
+            '🚨 Simuler Erreur 500 (Canary Rollback)'),
+          h('button', { className: 'btn btn-block', type: 'button', disabled: !token, onClick: () => setIsJwtModalOpen(true) }, '🔍 Inspecter le Jeton JWT Décodé')
         ),
-        // Terminal Temps Réel
         h('div', { className: 'jury-terminal-wrap' },
           h('div', { className: 'terminal-header' },
             h('span', null, 'TERMINAL TÉLÉMÉTRIE LIVE'),
@@ -971,6 +1183,7 @@
     };
 
     /* ===========================================================================
+
      * RENDU : MODAL JWT
      * =========================================================================== */
     const renderJwtModal = () => {
@@ -985,7 +1198,7 @@
           h('div', null, h('dt', null, 'Utilisateur (sub) :'), h('dd', null, h('strong', null, payload.sub || '—'))),
           h('div', null, h('dt', null, 'Rôles (RBAC) :'), h('dd', null, h('code', null, (payload.roles || []).join(', ')))),
           h('div', null, h('dt', null, 'Expiration :'), h('dd', null, new Date((payload.exp || 0) * 1000).toLocaleString())),
-          h('div', null, h('dt', null, 'Algorithme :'), h('dd', null, `${header.alg || 'ES256'} (${header.typ || 'JWT'})`))
+          h('div', null, h('dt', null, 'Algorithme :'), h('dd', null, `${header.alg || 'HS256'} (${header.typ || 'JWT'})`))
         ),
         h('pre', { className: 'raw' }, JSON.stringify({ header, payload }, null, 2))
       );
