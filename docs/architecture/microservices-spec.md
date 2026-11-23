@@ -237,3 +237,46 @@ Alice → Bob / Bob → Alice pour que les soldes restent stables pendant la min
   décoder le JWT (avec vérification côté serveur via `/api/auth/validate`) et tester l'idempotence (double envoi de la même clé).
 - Helm : `frontend-deployment.yaml`, `frontend-service.yaml`, `frontend-configmap.yaml`, `ingress.yaml` (`app.omnipay.local`, `omnipay.local`) ;
   PSS *restricted* (UID 101, root en lecture seule, `emptyDir` sur `/tmp` et `/var/cache/nginx`), 64 Mi / 50m → 128 Mi / 100m.
+
+
+---
+
+## 7. Évolutions Semaine 4 (S4) : Frontend React 18 Ultra, Polishing UI/UX & Tests de Charge k6 (P2)
+
+### 7.1 Architecture Frontend React 18 Ultra (Fintech Glassmorphism 2.0)
+En Semaine 4, le portail web client passe au niveau supérieur en intégrant **React 18** natif hébergé localement (`src/vendor/react.production.min.js` et `react-dom.production.min.js`), sans aucune dépendance réseau externe (100% conforme à la directive CSP `script-src 'self'` et compatible mode hors-ligne).
+
+#### Fonctionnalités Majeures Ajoutées :
+1. **Carte Bancaire 3D Interactive (Apple Card / Revolut Hologramme) :**
+   - Effet de parallaxe 3D dynamique réagissant aux mouvements de la souris (`perspective: 1200px`, calcul de `rotateX` et `rotateY`).
+   - Reflet holographique animé (`vcard-shine`) suivant l'orientation de la lumière.
+   - Puce dorée texturée avec circuits imprimés.
+   - Flip 3D (face arrière) avec bande magnétique, cryptogramme dynamique (CVV 842) et bouton de copie instantanée de l'IBAN.
+   - Sélecteur de skins de carte en 1-clic : *Obsidian Cyber*, *Emerald VIP*, *Platinum Frost*.
+2. **Badge Télémétrie HUD Zero-Trust Interactif :**
+   - Radar vert pulsant en temps réel dans l'en-tête.
+   - Modal de télémétrie affichant la latence en millisecondes de chaque microservice (`Auth: 12ms`, `Tx: 18ms`, `Notif: 8ms`, `Vault: NodePort 30006`).
+   - Synthèse de sécurité : TLS 1.3 Strict, eBPF Falco actif, NetworkPolicies Deny-All, Admission Kyverno Cosign.
+3. **Graphique SVG Donut Dynamique des Dépenses :**
+   - Répartition visuelle interactive des dépenses (Virements 45%, Services 30%, Assurances 25%).
+4. **Carrousel des Bénéficiaires Fréquents :**
+   - Sélection rapide en 1-clic d'un contact (Alice, Bob, ESTC Treasury, Réserve SRE) pré-remplissant automatiquement le formulaire de virement.
+5. **Moteur Sonore Fintech & Célébration Visuelle :**
+   - Web Audio API pure (zéro fichier audio) synthétisant un carillon d'accord triomphal lors d'un virement réussi.
+   - Explosion de confettis néon sur Canvas 2D lors de la validation d'un transfert.
+
+### 7.2 Banc de Tests de Charge k6 Scalé (50 à 150 VUs)
+Pour alimenter en direct la stack d'observabilité de Moad (P5) lors de la soutenance (Tracing Tempo et Golden Signals RED), le script k6 a été enrichi (`tests/load/k6-transactions-load.js`) :
+- **Profil de montée en charge :**
+  - Étape 1 : 0 ➔ 50 VUs en 20s (Ramp-up).
+  - Étape 2 : 50 ➔ 150 VUs pendant 1m30s (Plateau de charge).
+  - Étape 3 : 150 ➔ 0 VU en 20s (Ramp-down).
+- **Seuils de qualité (Thresholds) :**
+  - Latence p95 < 250 ms.
+  - Taux d'erreurs HTTP < 1%.
+  - Taux de réussite des vérifications > 99%.
+- **Orchestration :** Scripts exécutables `tests/load/run-load-test.sh` (Bash) et `tests/load/run-load-test.ps1` (PowerShell).
+
+### 7.3 Matrice de Résilience & Découplage
+- **Résilience Découplée :** La défaillance temporaire de `notification-service` n'interrompt pas les opérations financières de `transaction-service`.
+- **Idempotence :** Un double-clic ou retry réseau avec le même `X-Idempotency-Key` garantit mathématiquement l'unicité de l'opération en base PostgreSQL.
