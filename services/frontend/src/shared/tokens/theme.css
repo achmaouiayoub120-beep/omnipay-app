@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   OmniPay Zero-Trust — Variables CSS Globales & Thèmes (Dark & Light)
+   ========================================================================== */
+
+:root {
+  /* Mode Sombre (Par Défaut) */
+  --color-canvas: #070A12;
+  --color-surface-panel: #0B101E;
+  --color-surface-card: #0E1424;
+  --color-surface-hover: #18213A;
+  
+  --color-border-subtle: #1E2947;
+  --color-border-interactive: #2A395E;
+  --color-border-focus: #D4A24C;
+
+  --color-gold-accent: #D4A24C;
+  --color-gold-hover: #C49038;
+  --color-gold-subtle: rgba(212, 162, 76, 0.15);
+
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted: #94A3B8;
+  --color-text-disabled: #475569;
+
+  --color-emerald-success: #19C37D;
+  --color-crimson-danger: #E5484D;
+  --color-amber-warning: #F5A524;
+
+  --shadow-elevation-1: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+  --shadow-elevation-2: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-elevation-3: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+  --shadow-gold-glow: 0 0 24px -4px rgba(212, 162, 76, 0.35);
+
+  --topbar-height: 72px;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+[data-theme="light"] {
+  /* Mode Clair (Contraste AA Garanti) */
+  --color-canvas: #F8FAFC;
+  --color-surface-panel: #FFFFFF;
+  --color-surface-card: #FFFFFF;
+  --color-surface-hover: #F1F5F9;
+
+  --color-border-subtle: #E2E8F0;
+  --color-border-interactive: #CBD5E1;
+  --color-border-focus: #BA8735;
+
+  --color-gold-accent: #BA8735;
+  --color-gold-hover: #94652A;
+  --color-gold-subtle: rgba(186, 135, 53, 0.15);
+
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748B;
+  --color-text-disabled: #94A3B8;
+
+  --color-emerald-success: #0E9F6E;
+  --color-crimson-danger: #D61F26;
+  --color-amber-warning: #C05621;
+
+  --shadow-elevation-1: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --shadow-elevation-2: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-elevation-3: 0 10px 15px -3px rgba(0, 0, 0, 0.12);
+  --shadow-gold-glow: 0 0 20px -2px rgba(186, 135, 53, 0.25);
+}
+
+/* ==========================================================================
+   Règles de base & Accessibilité
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+}
+
+/* Chiffres avec chasse fixe pour alignement des montants financiers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Respect de la réduction des mouvements */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Masquage de confidentialité lors de la perte de focus d'onglet */
+.confidentiality-blur {
+  filter: blur(8px);
+  transition: filter 0.2s ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Focus accessible selon WCAG 2.2 AA */
+:focus-visible {
+  outline: 2px solid var(--color-gold-accent);
+  outline-offset: 2px;
+}
