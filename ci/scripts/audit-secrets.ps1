@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Script d'audit de détection de secrets — OmniPay Zero-Trust
 # ==============================================================================
 param (
@@ -43,7 +43,7 @@ $allowlistRegexes = @(
     'dummy-secret-for-testing-only'
 )
 
-$excludedDirs = @('\.git', 'target', '\.idea', '\.vscode')
+$excludedDirs = @('\.git', 'target', '\.idea', '\.vscode', 'node_modules', 'storybook-static', 'dist')
 
 $files = Get-ChildItem -Path $TargetDir -Recurse -File | Where-Object {
     $file = $_
