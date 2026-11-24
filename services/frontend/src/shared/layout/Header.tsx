@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Button, Badge } from '@/shared/ui';
 import { useAuthStore } from '@/features/auth/auth.store';
-import { Moon, Sun, LogOut, Clock } from 'lucide-react';
+import { useJuryStore } from '@/features/jury/jury.store';
+import { canAccessControlTower } from '@/features/security/rbac';
+import { Moon, Sun, LogOut, Clock, Gauge } from 'lucide-react';
 
 export function Header() {
   const { session, isAuthenticated, logout, sessionRemainingSeconds } = useAuthStore();
+  const { openDrawer } = useJuryStore();
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  const showJuryButton = isAuthenticated && canAccessControlTower(session);
 
   useEffect(() => {
     const saved = localStorage.getItem('omnipay.theme') as 'dark' | 'light' | null;
@@ -71,6 +76,20 @@ export function Header() {
                   : 'USER'}
               </Badge>
             </div>
+
+            {/* Mode Jury Button (ADMIN & Demo Mode) */}
+            {showJuryButton && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openDrawer}
+                className="border-[var(--color-gold)]/40 text-[var(--color-gold)] hover:bg-[var(--color-gold)]/10 gap-1.5 cursor-pointer text-xs"
+                title="Ouvrir la Tour de Contrôle DevSecOps (Mode Jury ESTC) - Raccourci Ctrl+Shift+J"
+              >
+                <Gauge className="h-3.5 w-3.5 text-[var(--color-gold)]" />
+                <span className="hidden md:inline font-semibold">Mode Jury</span>
+              </Button>
+            )}
           </>
         )}
 
