@@ -32,7 +32,7 @@ pipeline {
         CI_PROJECT        = 'omnipay'
         BUILD_TAG         = "build-${BUILD_NUMBER}"
         SONAR_HOST_URL    = 'http://sonarqube.omnipay.local:30003'
-        SERVICES          = 'auth,transaction,notification'
+        SERVICES          = 'auth,transaction,notification,frontend'
         DAST_TARGET_URL   = 'http://api.omnipay.local/api/transactions'
         GITOPS_REPO_URL   = 'https://github.com/achmaouiayoub120-beep/omnipay-gitops.git'
     }
@@ -107,6 +107,16 @@ pipeline {
                         echo "[OK] Build Maven et tests JaCoCo réussis."
                     else
                         echo "[WARN] pom.xml introuvable à la racine."
+                    fi
+
+                    if [ -d "services/frontend" ]; then
+                        echo "--- [Frontend] Vitest Tests & Compilation ---"
+                        cd services/frontend
+                        npm ci --legacy-peer-deps
+                        npm test
+                        npm run build
+                        cd ../..
+                        echo "[OK] Build Frontend React 18 et tests Vitest réussis."
                     fi
                 '''
             }
