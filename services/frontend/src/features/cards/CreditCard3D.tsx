@@ -8,9 +8,10 @@ import { cn } from '@/shared/lib/utils';
 export interface CreditCard3DProps {
   card: CardDTO;
   className?: string;
+  canManage?: boolean;
 }
 
-export function CreditCard3D({ card, className }: CreditCard3DProps) {
+export function CreditCard3D({ card, className, canManage = true }: CreditCard3DProps) {
   const { revealedCardId, revealTimeRemaining, toggleFreeze, revealPan, hidePan, decrementRevealTimer } =
     useCardsStore();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -190,47 +191,49 @@ export function CreditCard3D({ card, className }: CreditCard3DProps) {
         </div>
       </div>
 
-      {/* 4. Barre d'actions sous la carte (Gel / Dégel & Révélation sécurisée) */}
-      <div className="flex items-center justify-between gap-3 w-full px-1">
-        <Button
-          variant={card.isFrozen ? 'primary' : 'secondary'}
-          size="sm"
-          onClick={() => toggleFreeze(card.id)}
-          className="flex-1 text-xs"
-        >
-          {card.isFrozen ? (
-            <>
-              <Flame className="h-3.5 w-3.5 text-gold-400 mr-1.5" />
-              <span>Dégeler la carte</span>
-            </>
-          ) : (
-            <>
-              <Snowflake className="h-3.5 w-3.5 text-platinum-400 mr-1.5" />
-              <span>Geler la carte</span>
-            </>
-          )}
-        </Button>
+      {/* 4. Barre d'actions sous la carte (Gel / Dégel & Révélation sécurisée - masquée pour les auditeurs) */}
+      {canManage && (
+        <div className="flex items-center justify-between gap-3 w-full px-1">
+          <Button
+            variant={card.isFrozen ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => toggleFreeze(card.id)}
+            className="flex-1 text-xs cursor-pointer"
+          >
+            {card.isFrozen ? (
+              <>
+                <Flame className="h-3.5 w-3.5 text-gold-400 mr-1.5" />
+                <span>Dégeler la carte</span>
+              </>
+            ) : (
+              <>
+                <Snowflake className="h-3.5 w-3.5 text-platinum-400 mr-1.5" />
+                <span>Geler la carte</span>
+              </>
+            )}
+          </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleToggleReveal}
-          className="flex-1 text-xs"
-          disabled={card.isFrozen}
-        >
-          {isRevealed ? (
-            <>
-              <EyeOff className="h-3.5 w-3.5 mr-1.5" />
-              <span>Masquer</span>
-            </>
-          ) : (
-            <>
-              <Eye className="h-3.5 w-3.5 mr-1.5" />
-              <span>Révéler (10s)</span>
-            </>
-          )}
-        </Button>
-      </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToggleReveal}
+            className="flex-1 text-xs cursor-pointer"
+            disabled={card.isFrozen}
+          >
+            {isRevealed ? (
+              <>
+                <EyeOff className="h-3.5 w-3.5 mr-1.5" />
+                <span>Masquer</span>
+              </>
+            ) : (
+              <>
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                <span>Révéler (10s)</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

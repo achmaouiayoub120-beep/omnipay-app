@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/shared/layout/AppLayout';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { MfaModal } from '@/features/auth/MfaModal';
@@ -9,6 +9,12 @@ import { AccountSummary } from '@/features/dashboard/AccountSummary';
 import { SpendLimitsCard } from '@/features/dashboard/SpendLimitsCard';
 import { TransferWizard } from '@/features/transfers/components/TransferWizard';
 import { TransactionHistory } from '@/features/transactions/components/TransactionHistory';
+import { SecurityCenter } from '@/features/security/components/SecurityCenter';
+import {
+  canPerformTransfers,
+  canManageCards,
+  getRoleBadgeInfo,
+} from '@/features/security/rbac';
 import { INTERNAL_ACCOUNTS } from '@/shared/lib/iban';
 import { Button, Badge } from '@/shared/ui';
 import {
@@ -18,14 +24,26 @@ import {
   Receipt,
   ArrowRight,
   ShieldCheck,
+  Shield,
 } from 'lucide-react';
 
-type ActiveNavTab = 'dashboard' | 'transfers' | 'history';
+type ActiveNavTab = 'dashboard' | 'transfers' | 'history' | 'security';
 
 export function App() {
   const { isAuthenticated, session } = useAuthStore();
   const { cards } = useCardsStore();
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('dashboard');
+
+  const transfersAllowed = canPerformTransfers(session);
+  const cardManagementAllowed = canManageCards(session);
+  const roleInfo = getRoleBadgeInfo(session?.roles || ['ROLE_USER']);
+
+  // Si le rôle actuel ne permet pas les virements (ex: AUDITOR), forcer le retour au dashboard
+  useEffect(() => {
+    if (activeTab === 'transfers' && !transfersAllowed) {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, transfersAllowed]);
 
   // Résolution dynamique du compte utilisateur avec IBAN Modulo-97 certifié
   const username = session?.username || 'user';
@@ -76,19 +94,24 @@ export function App() {
                   Espace Bancaire Privé
                 </span>
                 <Badge variant="gold" size="sm">NIVEAU ULTRA PLATINUM</Badge>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${roleInfo.badgeClass}`}
+                >
+                  {roleInfo.label}
+                </span>
               </div>
               <h2 className="text-2xl font-bold text-white mt-1">
                 Bienvenue, {accountData.holderName.split(' ')[0]}
               </h2>
             </div>
 
-            {/* Navigation Tabs (Dashboard, Transfers, History) */}
+            {/* Navigation Tabs (Dashboard, Transfers, History, Security) */}
             <div className="flex items-center gap-2">
               <div className="inline-flex items-center bg-[#070A12] p-1 rounded-xl border border-white/10">
                 <button
                   type="button"
                   onClick={() => setActiveTab('dashboard')}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'dashboard'
                       ? 'bg-[var(--color-gold)] text-[#070A12] shadow-sm'
                       : 'text-gray-400 hover:text-white'
@@ -98,23 +121,26 @@ export function App() {
                   <span>Tableau de bord</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('transfers')}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    activeTab === 'transfers'
-                      ? 'bg-[var(--color-gold)] text-[#070A12] shadow-sm'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Virements</span>
-                </button>
+                {/* Onglet Virements : ABSENT pour ROLE_AUDITOR */}
+                {transfersAllowed && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('transfers')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      activeTab === 'transfers'
+                        ? 'bg-[var(--color-gold)] text-[#070A12] shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Virements</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
                   onClick={() => setActiveTab('history')}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'history'
                       ? 'bg-[var(--color-gold)] text-[#070A12] shadow-sm'
                       : 'text-gray-400 hover:text-white'
@@ -123,9 +149,23 @@ export function App() {
                   <Receipt className="w-3.5 h-3.5" />
                   <span>Historique</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('security')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'security'
+                      ? 'bg-[var(--color-gold)] text-[#070A12] shadow-sm'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>Sécurité</span>
+                </button>
               </div>
 
-              {activeTab !== 'transfers' && (
+              {/* Bouton d'action rapide Virement : ABSENT si non autorisé ou si déjà sur l'onglet */}
+              {transfersAllowed && activeTab !== 'transfers' && (
                 <Button
                   variant="primary"
                   size="sm"
@@ -153,7 +193,7 @@ export function App() {
 
               {/* Carte Bancaire 3D Parallax & Plafonds */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                {/* Carte 3D Interactive */}
+                {/* Carte 3D Interactive (actions gel/révélation masquées si non autorisé) */}
                 <div className="flex flex-col items-center p-6 rounded-3xl border border-white/10 bg-[#0B101E]/80 shadow-2xl space-y-4">
                   <div className="w-full flex items-center justify-between">
                     <div>
@@ -169,10 +209,10 @@ export function App() {
                     </Badge>
                   </div>
 
-                  <CreditCard3D card={activeCard} />
+                  <CreditCard3D card={activeCard} canManage={cardManagementAllowed} />
                 </div>
 
-                {/* Plafonds de paiement & Métriques de sécurité */}
+                {/* Plafonds de paiement & Accès Rapides */}
                 <div className="space-y-6">
                   <SpendLimitsCard
                     spentMinor={activeCard.currentMonthSpentMinor}
@@ -180,37 +220,60 @@ export function App() {
                   />
 
                   {/* Accès rapide vers l'historique et la sécurité */}
-                  <div className="p-5 bg-[#0B101E] border border-white/10 rounded-2xl flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--color-gold)]/10 text-[var(--color-gold)] flex items-center justify-center">
-                        <ShieldCheck className="w-5 h-5" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-4 bg-[#0B101E] border border-white/10 rounded-2xl flex flex-col justify-between space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-[var(--color-gold)]/10 text-[var(--color-gold)] flex items-center justify-center">
+                          <Receipt className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-semibold text-white">
+                            Historique certifié
+                          </h4>
+                          <span className="text-[11px] text-gray-400">Reçus & Justificatifs</span>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-white">
-                          Historique certifié & Reçus
-                        </h4>
-                        <p className="text-xs text-gray-400">
-                          Consultez vos opérations récentes avec justificatifs téléchargeables.
-                        </p>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActiveTab('history')}
+                        className="cursor-pointer text-xs"
+                      >
+                        <span>Consulter</span>
+                        <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveTab('history')}
-                      className="cursor-pointer"
-                    >
-                      <span>Voir</span>
-                      <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                    </Button>
+
+                    <div className="p-4 bg-[#0B101E] border border-white/10 rounded-2xl flex flex-col justify-between space-y-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-[var(--color-emerald)]/10 text-[var(--color-emerald)] flex items-center justify-center">
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-semibold text-white">
+                            Audit & Sécurité
+                          </h4>
+                          <span className="text-[11px] text-gray-400">Sessions & eBPF</span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActiveTab('security')}
+                        className="cursor-pointer text-xs"
+                      >
+                        <span>Gérer</span>
+                        <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Tab 2: 5-Step Transfer Wizard */}
-          {activeTab === 'transfers' && (
+          {/* Tab 2: 5-Step Transfer Wizard (Uniquement si autorisé) */}
+          {transfersAllowed && activeTab === 'transfers' && (
             <div className="animate-in fade-in duration-200 max-w-3xl mx-auto">
               <TransferWizard onGoToHistory={() => setActiveTab('history')} />
             </div>
@@ -220,6 +283,13 @@ export function App() {
           {activeTab === 'history' && (
             <div className="animate-in fade-in duration-200">
               <TransactionHistory />
+            </div>
+          )}
+
+          {/* Tab 4: Security Center & RBAC Audit */}
+          {activeTab === 'security' && (
+            <div className="animate-in fade-in duration-200">
+              <SecurityCenter />
             </div>
           )}
         </div>
