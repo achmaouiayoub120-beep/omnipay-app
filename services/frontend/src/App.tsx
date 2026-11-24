@@ -10,6 +10,7 @@ import { SpendLimitsCard } from '@/features/dashboard/SpendLimitsCard';
 import { TransferWizard } from '@/features/transfers/components/TransferWizard';
 import { TransactionHistory } from '@/features/transactions/components/TransactionHistory';
 import { SecurityCenter } from '@/features/security/components/SecurityCenter';
+import { ControlTowerDrawer } from '@/features/jury/components/ControlTowerDrawer';
 import {
   canPerformTransfers,
   canManageCards,
@@ -80,6 +81,7 @@ export function App() {
   return (
     <AppLayout>
       <MfaModal />
+      <ControlTowerDrawer />
 
       {!isAuthenticated ? (
         <LoginForm />
