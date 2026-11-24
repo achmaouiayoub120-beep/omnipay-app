@@ -11,7 +11,7 @@
 |---|---|---|---|
 | `alice` | `ROLE_USER` | `ACC-ALICE-001` | **1 000,00 €** |
 | `bob` | `ROLE_USER` | `ACC-BOB-002` | **500,00 €** |
-| `admin` | `ROLE_ADMIN` + `ROLE_USER` : supervision (historique de tous les comptes, peut débiter n'importe quel compte) | `ACC-ADMIN-004` | 50 000,00 € |
+| `admin` | **AUDIT & SUPERVISION** (badge du portail ; techniquement `ROLE_ADMIN` + `ROLE_USER`) : historique de tous les comptes, peut débiter n'importe quel compte | `ACC-ADMIN-004` | 50 000,00 € |
 | `auditor` | `ROLE_AUDITOR` : audit en lecture seule | aucun | — |
 
 > Écart avec le brief initial : le brief annonçait alice à 2 500,00 € et bob à 800,00 €. Ce sont les valeurs d'une maquette ; les migrations Flyway

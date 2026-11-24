@@ -251,7 +251,7 @@ fonctionnement hors-ligne. Le portail appelle l'**API réelle** (aucune donnée 
 | Virement | `POST /api/transactions` avec `X-Idempotency-Key` |
 | Décodage / vérification du JWT | lecture locale des claims + `GET /api/auth/validate` |
 
-**Retours utilisateur (toasts, charte `#0f172a` / `#10b981` / `#ef4444` / `#f59e0b`)**
+**Retours utilisateur (toasts, charte `#0f172a` / `#10b981` / `#ef4444` / `#facc15`)**
 
 | Couleur | Déclencheur | Message |
 |---|---|---|

@@ -90,6 +90,145 @@
   });
 
   /* ===========================================================================
+   * COMPOSANTS ICONES VECTORIELLES SVG HAUTE PRÉCISION (ZERO-TRUST LUXURY)
+   * =========================================================================== */
+  const ICONS = {
+    'shield': [
+      h('path', { key: '1', d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' })
+    ],
+    'shield-check': [
+      h('path', { key: '1', d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }),
+      h('path', { key: '2', d: 'M9 12l2 2 4-4' })
+    ],
+    'lock': [
+      h('rect', { key: '1', x: '3', y: '11', width: '18', height: '11', rx: '2', ry: '2' }),
+      h('path', { key: '2', d: 'M7 11V7a5 5 0 0 1 10 0v4' })
+    ],
+    'eye': [
+      h('path', { key: '1', d: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' }),
+      h('circle', { key: '2', cx: '12', cy: '12', r: '3' })
+    ],
+    'eye-off': [
+      h('path', { key: '1', d: 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24' }),
+      h('line', { key: '2', x1: '1', y1: '1', x2: '23', y2: '23' })
+    ],
+    'contactless': [
+      h('path', { key: '1', d: 'M8.5 16.5a5 5 0 0 1 0-7' }),
+      h('path', { key: '2', d: 'M12 19a8.5 8.5 0 0 0 0-12' }),
+      h('path', { key: '3', d: 'M15.5 21.5a12 12 0 0 0 0-17' })
+    ],
+    'credit-card': [
+      h('rect', { key: '1', x: '1', y: '4', width: '22', height: '16', rx: '2', ry: '2' }),
+      h('line', { key: '2', x1: '1', y1: '10', x2: '23', y2: '10' })
+    ],
+    'copy': [
+      h('rect', { key: '1', x: '9', y: '9', width: '13', height: '13', rx: '2', ry: '2' }),
+      h('path', { key: '2', d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' })
+    ],
+    'check': [
+      h('polyline', { key: '1', points: '20 6 9 17 4 12' })
+    ],
+    'check-circle': [
+      h('path', { key: '1', d: 'M22 11.08V12a10 10 0 1 1-5.93-9.14' }),
+      h('polyline', { key: '2', points: '22 4 12 14.01 9 11.01' })
+    ],
+    'x': [
+      h('line', { key: '1', x1: '18', y1: '6', x2: '6', y2: '18' }),
+      h('line', { key: '2', x1: '6', y1: '6', x2: '18', y2: '18' })
+    ],
+    'alert-triangle': [
+      h('path', { key: '1', d: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z' }),
+      h('line', { key: '2', x1: '12', y1: '9', x2: '12', y2: '13' }),
+      h('line', { key: '3', x1: '12', y1: '17', x2: '12.01', y2: '17' })
+    ],
+    'send': [
+      h('line', { key: '1', x1: '22', y1: '2', x2: '11', y2: '13' }),
+      h('polygon', { key: '2', points: '22 2 15 22 11 13 2 9 22 2' })
+    ],
+    'history': [
+      h('path', { key: '1', d: 'M1 4v6h6' }),
+      h('path', { key: '2', d: 'M3.51 15a9 9 0 1 0 2.13-9.36L1 10' }),
+      h('polyline', { key: '3', points: '12 7 12 12 15 15' })
+    ],
+    'users': [
+      h('path', { key: '1', d: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' }),
+      h('circle', { key: '2', cx: '9', cy: '7', r: '4' }),
+      h('path', { key: '3', d: 'M23 21v-2a4 4 0 0 0-3-3.87' }),
+      h('path', { key: '4', d: 'M16 3.13a4 4 0 0 1 0 7.75' })
+    ],
+    'user': [
+      h('path', { key: '1', d: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2' }),
+      h('circle', { key: '2', cx: '12', cy: '7', r: '4' })
+    ],
+    'crown': [
+      h('path', { key: '1', d: 'M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14v2H5v-2z' })
+    ],
+    'zap': [
+      h('polygon', { key: '1', points: '13 2 3 14 12 14 11 22 21 10 12 10 13 2' })
+    ],
+    'activity': [
+      h('polyline', { key: '1', points: '22 12 18 12 15 21 9 3 6 12 2 12' })
+    ],
+    'trending-up': [
+      h('polyline', { key: '1', points: '23 6 13.5 15.5 8.5 10.5 1 18' }),
+      h('polyline', { key: '2', points: '17 6 23 6 23 12' })
+    ],
+    'pie-chart': [
+      h('path', { key: '1', d: 'M21.21 15.89A10 10 0 1 1 8 2.83' }),
+      h('path', { key: '2', d: 'M22 12A10 10 0 0 0 12 2v10z' })
+    ],
+    'key': [
+      h('path', { key: '1', d: 'M21 2l-2 2m-1.5 1.5L16 7l-2-2m-1.5 1.5L11 8l-2-2m-1.5 1.5L6 9a5 5 0 1 0 7 7l8-8' })
+    ],
+    'terminal': [
+      h('polyline', { key: '1', points: '4 17 10 11 4 5' }),
+      h('line', { key: '2', x1: '12', y1: '19', x2: '20', y2: '19' })
+    ],
+    'moon': [
+      h('path', { key: '1', d: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z' })
+    ],
+    'sun': [
+      h('circle', { key: '1', cx: '12', cy: '12', r: '5' }),
+      h('line', { key: '2', x1: '12', y1: '1', x2: '12', y2: '3' }),
+      h('line', { key: '3', x1: '12', y1: '21', x2: '12', y2: '23' }),
+      h('line', { key: '4', x1: '4.22', y1: '4.22', x2: '5.64', y2: '5.64' }),
+      h('line', { key: '5', x1: '18.36', y1: '18.36', x2: '19.78', y2: '19.78' }),
+      h('line', { key: '6', x1: '1', y1: '12', x2: '3', y2: '12' }),
+      h('line', { key: '7', x1: '21', y1: '12', x2: '23', y2: '12' }),
+      h('line', { key: '8', x1: '4.22', y1: '19.78', x2: '5.64', y2: '18.36' }),
+      h('line', { key: '9', x1: '18.36', y1: '5.64', x2: '19.78', y2: '4.22' })
+    ],
+    'volume-2': [
+      h('polygon', { key: '1', points: '11 5 6 9 2 9 2 15 6 15 11 19 11 5' }),
+      h('path', { key: '2', d: 'M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07' })
+    ],
+    'volume-x': [
+      h('polygon', { key: '1', points: '11 5 6 9 2 9 2 15 6 15 11 19 11 5' }),
+      h('line', { key: '2', x1: '23', y1: '9', x2: '17', y2: '15' }),
+      h('line', { key: '3', x1: '17', y1: '9', x2: '23', y2: '15' })
+    ]
+  };
+
+  const TOAST_ICONS = { ok: 'check-circle', ko: 'x', warn: 'alert-triangle', info: 'activity' };
+
+  function Icon({ name, size = 18, className = '', color = 'currentColor', style = {} }) {
+    const children = ICONS[name] || ICONS['shield'];
+    return h('svg', {
+      className: `svg-icon ${className}`.trim(),
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: color,
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      style: { verticalAlign: 'middle', flexShrink: 0, ...style },
+      'aria-hidden': 'true'
+    }, ...children);
+  }
+
+  /* ===========================================================================
    * 2. MOTEUR SONORE FINTECH (Web Audio API)
    * =========================================================================== */
   let audioCtx = null;
@@ -500,7 +639,7 @@
         const txId = r.data.transactionId;
         if (r.data.status === REPLAY_STATUS) {
           // Jaune : requête dupliquée interceptée par l'idempotence.
-          addToast('warn', 'Requête dupliquée interceptée', `Transaction déjà enregistrée, pas de double prélèvement (id ${txId}).`);
+          addToast('warn', 'Requête dupliquée interceptée', 'Transaction déjà enregistrée, pas de double prélèvement');
           addJuryLog(`HTTP 200 IDEMPOTENT_REPLAY : clé ${key.slice(0, 8)}… déjà traitée, réponse d'origine rejouée (id ${txId}).`, 'warn');
         } else {
           // Vert : virement confirmé avec l'identifiant de transaction.
@@ -565,14 +704,7 @@
     const renderHeader = () => {
       return h('header', { className: 'topbar glass' },
         h('a', { className: 'brand', href: '/', onClick: (e) => e.preventDefault() },
-          h('div', { className: 'brand-logo-wrap' },
-            h('img', { className: 'logo-chip', src: 'assets/logo-mark.png', alt: 'OmniPay', width: 44, height: 44 }),
-            h('span', { className: 'pulse-glow' })
-          ),
-          h('div', { className: 'brand-text' },
-            h('span', { className: 'brand-name' }, 'OmniPay'),
-            h('span', { className: 'brand-sub' }, 'ZERO-TRUST BANKING')
-          )
+          h('img', { className: 'brand-logo-img', src: 'assets/logo.png', alt: 'OmniPay Bank Online' })
         ),
         // Zero-Trust HUD Badge
         h('button', {
@@ -596,7 +728,7 @@
             h('strong', null, user),
             h('small', { className: 'muted' }, `Jeton: ${sessionCountdown}`)
           ),
-          h('span', { className: `role-badge ${roles.includes('ROLE_ADMIN') ? 'is-admin' : ''}` }, roles.includes('ROLE_ADMIN') ? 'ROLE_ADMIN' : 'ROLE_USER')
+          h('span', { className: `role-badge ${roles.includes('ROLE_ADMIN') ? 'is-admin' : ''}` }, roles.includes('ROLE_ADMIN') ? 'ROLE_ADMIN · AUDIT & SUPERVISION' : roles.includes('ROLE_AUDITOR') ? 'ROLE_AUDITOR · LECTURE SEULE' : 'ROLE_USER')
         ),
         // Boutons Rapides
         h('button', {
@@ -609,20 +741,20 @@
             addToast('info', 'Audio Fintech', next ? 'Effets sonores activés.' : 'Son coupé.');
           },
           title: 'Retour sonore'
-        }, soundEnabled ? '🔊' : '🔇'),
+        }, h(Icon, { name: soundEnabled ? 'volume-2' : 'volume-x', size: 18 })),
         h('button', {
           className: 'btn btn-icon',
           type: 'button',
           onClick: () => setTheme(t => t === 'dark' ? 'light' : 'dark'),
           title: 'Changer de thème'
-        }, theme === 'dark' ? '🌓' : '☀️'),
+        }, h(Icon, { name: theme === 'dark' ? 'moon' : 'sun', size: 18 })),
         h('button', {
           className: 'btn btn-jury',
           type: 'button',
           onClick: () => setIsJuryOpen(o => !o)
         },
           h('span', { className: 'jury-pulse' }),
-          h('span', null, '⚡ Outils Jury & Soutenance')
+          h(Icon, { name: 'zap', size: 16 }), h('span', null, 'Outils Jury & Soutenance')
         ),
         token && h('button', {
           className: 'btn btn-ghost',
@@ -639,10 +771,7 @@
       return h('section', { className: 'login-wrap' },
         h('form', { className: 'glass login-card', onSubmit: handleLogin, autoComplete: 'off' },
           h('div', { className: 'login-hero' },
-            h('div', { className: 'logo-3d-wrap' },
-              h('img', { className: 'login-logo', src: 'assets/logo.jpg', alt: 'OmniPay Zero-Trust', width: 130, height: 130 }),
-              h('div', { className: 'logo-glow' })
-            ),
+            h('img', { className: 'login-emblem', src: 'assets/logo.png', alt: 'OmniPay Bank Online — Zero-Trust' }),
             h('h1', null, 'Accès Sécurisé Néobanque'),
             h('p', { className: 'muted' }, 'Authentification par jeton JWT signé (HS256) émis par auth-service. Posture Zero-Trust : chaque requête est revérifiée.')
           ),
@@ -664,8 +793,8 @@
           h('div', { className: 'demo-accounts' },
             h('span', { className: 'demo-label' }, 'Comptes démo (identifiant pré-rempli) :'),
             h('div', { className: 'demo-chips' },
-              ['alice', 'bob', 'admin', 'auditor'].map((u) =>
-                h('button', { key: u, type: 'button', className: 'chip', onClick: () => pickDemoUser(u) }, u)
+              [['alice', 'user'], ['bob', 'user'], ['admin', 'crown'], ['auditor', 'shield']].map(([u, icon]) =>
+                h('button', { key: u, type: 'button', className: 'chip', onClick: () => pickDemoUser(u) }, h(Icon, { name: icon, size: 14 }), ' ' + u)
               )
             )
           ),
@@ -673,9 +802,9 @@
           h('button', { className: 'btn btn-primary btn-block btn-lg', type: 'submit', disabled: isLoggingIn },
             isLoggingIn ? 'Authentification…' : 'Se connecter'),
           h('div', { className: 'login-badges' },
-            h('span', null, '🔒 JWT stateless'),
-            h('span', null, '⚡ Vault Secrets'),
-            h('span', null, '🛡️ eBPF Falco')
+            h('span', null, h(Icon, { name: 'lock', size: 14 }), ' JWT stateless'),
+            h('span', null, h(Icon, { name: 'zap', size: 14 }), ' Vault Secrets'),
+            h('span', null, h(Icon, { name: 'shield', size: 14 }), ' eBPF Falco')
           )
         )
       );
@@ -706,11 +835,10 @@
                 h('div', { className: 'vcard-shine', ref: shineRef }),
                 h('div', { className: 'vcard-row vcard-head' },
                   h('span', { className: 'vcard-brand' },
-                    h('img', { className: 'logo-chip', src: 'assets/logo-mark.png', alt: '', width: 34, height: 34 }),
-                    h('strong', null, 'OmniPay'),
-                    h('small', { className: 'vcard-tier' }, 'ULTRA')
+                    h('img', { className: 'vcard-brand-img', src: 'assets/logo.png', alt: 'OmniPay' }),
+                    h('small', { className: 'vcard-tier' }, 'ULTRA PLATINUM')
                   ),
-                  h('div', { className: 'vcard-contactless' }, '📶')
+                  h('div', { className: 'vcard-contactless' }, h(Icon, { name: 'contactless', size: 24 }))
                 ),
                 h('div', { className: 'chip-gold' }, h('div', { className: 'chip-circuit' })),
                 h('div', { className: 'vcard-number-wrap' },
@@ -724,7 +852,7 @@
                       setIsCardMasked(m => !m);
                       playSound('click', soundEnabled);
                     }
-                  }, isCardMasked ? '👁️' : '🔒')
+                  }, h(Icon, { name: isCardMasked ? 'eye' : 'eye-off', size: 16 }))
                 ),
                 h('div', { className: 'vcard-row vcard-foot' },
                   h('div', { className: 'vcard-field' },
@@ -764,7 +892,7 @@
                         navigator.clipboard?.writeText(iban);
                         addToast('ok', 'Copié dans le presse-papier', `IBAN ${iban} copié.`);
                       }
-                    }, '📋 Copier l\'IBAN'),
+                    }, h(Icon, { name: 'copy', size: 14 }), ' Copier l\'IBAN'),
                     h('button', {
                       type: 'button',
                       className: 'btn btn-sm btn-primary',
@@ -830,7 +958,7 @@
             ),
             h('article', { className: 'glass stat stat-shield' },
               h('span', { className: 'muted' }, 'Certification de Sécurité'),
-              h('strong', { className: 'stat-value stat-status' }, '✔ Tier-3 Bancaire'),
+              h('strong', { className: 'stat-value stat-status' }, h(Icon, { name: 'check-circle', size: 16, color: '#10b981' }), ' Tier-3 Bancaire'),
               h('div', { className: 'security-pills' },
                 h('span', { className: 'sec-pill' }, 'Plafond 15 000 €'),
                 h('span', { className: 'sec-pill sec-pill-green' }, 'Zero-Trust OK')
@@ -841,7 +969,7 @@
         // Carrousel de Bénéficiaires Récents
         h('section', { className: 'recipients-section glass' },
           h('div', { className: 'recipients-head' },
-            h('h3', null, '⚡ Bénéficiaires Fréquents (Sélection Rapide en 1-Clic)'),
+            h('h3', null, h(Icon, { name: 'users', size: 18 }), ' Bénéficiaires Fréquents (Sélection Rapide en 1-Clic)'),
             h('span', { className: 'muted' }, 'Cliquez sur un contact pour pré-remplir le virement')
           ),
           h('div', { className: 'recipients-carousel' },
@@ -873,8 +1001,8 @@
           // Formulaire de Virement
           h('form', { className: 'glass panel transfer-panel', onSubmit: handleTransferSubmit },
             h('div', { className: 'panel-head' },
-              h('h2', null, '💸 Virement Bancaire en Direct'),
-              h('span', { className: 'tag-idempotent' }, '🛡️ Idempotence Active')
+              h('h2', null, h(Icon, { name: 'send', size: 20 }), ' Virement Bancaire en Direct'),
+              h('span', { className: 'tag-idempotent' }, h(Icon, { name: 'shield-check', size: 14 }), ' Idempotence Active')
             ),
             h('div', { className: 'form-group' },
               h('label', null, 'Compte Bénéficiaire (IBAN)'),
@@ -933,14 +1061,16 @@
               type: 'submit',
               disabled: roles.length > 0 && !roles.includes('ROLE_USER') && !roles.includes('ROLE_ADMIN'),
               'aria-busy': pendingCount > 0
-            }, pendingCount > 0 ? `Validation en cours… (${pendingCount} requête${pendingCount > 1 ? 's' : ''}, même clé)` : '🚀 Confirmer le virement sécurisé'),
+            }, pendingCount > 0
+              ? `Validation en cours… (${pendingCount} requête${pendingCount > 1 ? 's' : ''}, même clé)`
+              : [h(Icon, { key: 'send-ic', name: 'send', size: 16 }), ' Confirmer le virement sécurisé']),
             h('p', { className: 'fineprint muted' }, 'Protection contre le double-débit : la clé X-Idempotency-Key est enregistrée en base avec le virement ; un clic répété ou un rejeu réseau ne débite qu\'une fois.')
           ),
           // Historique & Graphique
           h('section', { className: 'glass panel history-panel' },
             h('div', { className: 'panel-head' },
               h('div', { className: 'hist-title-wrap' },
-                h('h2', null, '📜 Transactions & Grand Livre'),
+                h('h2', null, h(Icon, { name: 'history', size: 20 }), ' Transactions & Grand Livre'),
                 h('span', { className: 'live-dot' })
               ),
               h('div', { className: 'seg' },
@@ -963,7 +1093,7 @@
                   type: 'button',
                   className: `seg-btn ${activeTab === 'analytics' ? 'is-active' : ''}`,
                   onClick: () => setActiveTab('analytics')
-                }, '📊 Graphique')
+                }, h(Icon, { name: 'pie-chart', size: 14 }), ' Graphique')
               )
             ),
             activeTab === 'analytics' ?
@@ -1004,7 +1134,7 @@
                         h('td', null, dateFmt.format(new Date(tx.timestamp))),
                         h('td', null, isDebit ? `Vers ${tx.targetAccount}` : `De ${tx.sourceAccount}`),
                         h('td', null, tx.reason),
-                        h('td', null, h('span', { className: 'badge-status success' }, '✔ Validé Zero-Trust')),
+                        h('td', null, h('span', { className: 'badge-status success' }, h(Icon, { name: 'check-circle', size: 13 }), ' Validé Zero-Trust')),
                         h('td', { className: `num ${isDebit ? 'neg' : 'pos'}` }, `${isDebit ? '-' : '+'} ${eur.format(Number(tx.amount))}`)
                       );
                     })
@@ -1023,8 +1153,8 @@
       if (!isSecurityHudOpen) return null;
       return h('dialog', { className: 'modal glass', open: true },
         h('div', { className: 'jury-head' },
-          h('h2', null, '🛡️ Télémétrie de Sécurité Zero-Trust en Direct'),
-          h('button', { className: 'btn btn-icon', type: 'button', onClick: () => setIsSecurityHudOpen(false) }, '✕')
+          h('h2', null, h(Icon, { name: 'shield', size: 20 }), ' Télémétrie de Sécurité Zero-Trust en Direct'),
+          h('button', { className: 'btn btn-icon', type: 'button', onClick: () => setIsSecurityHudOpen(false) }, h(Icon, { name: 'x', size: 18 }))
         ),
         h('div', { className: 'hud-body' },
           h('div', { className: 'hud-section' },
@@ -1140,13 +1270,13 @@
       return h('aside', { className: 'jury glass' },
         h('div', { className: 'jury-head' },
           h('div', { className: 'jury-title' },
-            h('span', { className: 'jury-icon' }, '⚡'),
+            h('span', { className: 'jury-icon' }, h(Icon, { name: 'zap', size: 20 })),
             h('div', null,
               h('h2', null, 'Console Démo Soutenance'),
               h('small', { className: 'muted' }, 'Trafic réel, chaos & résilience en direct')
             )
           ),
-          h('button', { className: 'btn btn-icon', type: 'button', onClick: () => setIsJuryOpen(false) }, '✕')
+          h('button', { className: 'btn btn-icon', type: 'button', onClick: () => setIsJuryOpen(false) }, h(Icon, { name: 'x', size: 18 }))
         ),
         h('div', { className: 'jury-group' },
           h('label', { className: 'jury-label' }, 'Changer d\'utilisateur (test RBAC) : déconnexion + identifiant pré-rempli'),
@@ -1161,14 +1291,15 @@
             className: `btn btn-block ${notifOutage ? 'btn-primary' : 'btn-danger'}`,
             type: 'button',
             onClick: toggleNotifOutage
-          }, notifOutage ? '🔔 Rétablir le Service Notification' : '🔕 Injecter Panne Notification'),
+          }, h(Icon, { name: notifOutage ? 'activity' : 'alert-triangle', size: 16 }), notifOutage ? ' Rétablir le Service Notification' : ' Injecter Panne Notification'),
           h('button', { id: 'jury-inject', className: 'btn btn-primary btn-block', type: 'button', disabled: !token || !!juryBusy, onClick: injectTransactions },
-            juryBusy === 'inject' ? 'Injection en cours…' : '🚀 Injecter 50 Transactions (0,50 €)'),
+            h(Icon, { name: 'trending-up', size: 16 }), juryBusy === 'inject' ? ' Injection en cours…' : ' Injecter 50 Transactions (0,50 €)'),
           h('button', { id: 'jury-idem', className: 'btn btn-block', type: 'button', disabled: !token || !!juryBusy, onClick: testIdempotency },
-            '🛡️ Tester l\'Idempotence (double envoi)'),
+            h(Icon, { name: 'shield-check', size: 16 }), ' Tester l\'Idempotence (double envoi)'),
           h('button', { id: 'jury-chaos', className: 'btn btn-danger btn-block', type: 'button', disabled: !token || !!juryBusy, onClick: simulateServerErrors },
-            '🚨 Simuler Erreur 500 (Canary Rollback)'),
-          h('button', { className: 'btn btn-block', type: 'button', disabled: !token, onClick: () => setIsJwtModalOpen(true) }, '🔍 Inspecter le Jeton JWT Décodé')
+            h(Icon, { name: 'alert-triangle', size: 16 }), ' Simuler Erreur 500 (Canary Rollback)'),
+          h('button', { className: 'btn btn-block', type: 'button', disabled: !token, onClick: () => setIsJwtModalOpen(true) },
+            h(Icon, { name: 'key', size: 16 }), ' Inspecter le Jeton JWT Décodé')
         ),
         h('div', { className: 'jury-terminal-wrap' },
           h('div', { className: 'terminal-header' },
@@ -1191,8 +1322,8 @@
       const { header, payload } = decodeJwt(token || '');
       return h('dialog', { className: 'modal glass', open: true },
         h('div', { className: 'jury-head' },
-          h('h2', null, '🔍 Inspecteur de Jeton JWT (Zero-Trust Proof)'),
-          h('button', { className: 'btn btn-icon', type: 'button', onClick: () => setIsJwtModalOpen(false) }, '✕')
+          h('h2', null, h(Icon, { name: 'key', size: 20 }), ' Inspecteur de Jeton JWT (Zero-Trust Proof)'),
+          h('button', { className: 'btn btn-icon', type: 'button', onClick: () => setIsJwtModalOpen(false) }, h(Icon, { name: 'x', size: 18 }))
         ),
         h('dl', { className: 'claims' },
           h('div', null, h('dt', null, 'Utilisateur (sub) :'), h('dd', null, h('strong', null, payload.sub || '—'))),
@@ -1241,8 +1372,10 @@
       // Toasts
       h('div', { className: 'toasts' },
         toasts.map(t =>
-          h('div', { key: t.id, className: `toast ${t.kind}` },
-            h('strong', null, t.title),
+          h('div', { key: t.id, className: `toast ${t.kind}`, role: 'status' },
+            h('div', { className: 'toast-head' },
+              h(Icon, { name: TOAST_ICONS[t.kind] || 'activity', size: 16 }),
+              h('strong', null, t.title)),
             t.message && h('span', null, t.message)
           )
         )
