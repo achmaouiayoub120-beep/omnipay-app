@@ -27,6 +27,24 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 3000,
+    host: true,
+    proxy: {
+      '/api/auth': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+      },
+      '/api/transactions': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+      },
+      '/api/notifications': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,

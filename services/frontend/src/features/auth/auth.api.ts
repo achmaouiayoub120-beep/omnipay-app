@@ -33,39 +33,45 @@ export async function loginApi(credentials: LoginRequest): Promise<LoginResponse
       throw new AuthApiError(res.status, 'Identifiant ou mot de passe incorrect.');
     }
 
-    throw new AuthApiError(res.status, `Erreur serveur (${res.status})`);
+    // Si le service d'authentification est introuvable (404 en preview statique) ou indisponible (5xx)
+    if (res.status === 404 || res.status >= 500) {
+      console.warn(`[OmniPay Auth API] Backend auth indisponible (${res.status}), bascule sur le mode résilience démo.`);
+    } else {
+      throw new AuthApiError(res.status, `Erreur serveur (${res.status})`);
+    }
   } catch (err) {
     if (err instanceof AuthApiError) {
       throw err;
     }
-
-    // Mode résilience / démonstration locale hors-ligne si backend non démarré
-    const u = credentials.username.toLowerCase();
-    if (credentials.password === 'password' || credentials.password.length >= 6) {
-      const roles: Role[] =
-        u === 'admin'
-          ? ['ROLE_ADMIN', 'ROLE_USER']
-          : u === 'auditor'
-          ? ['ROLE_AUDITOR']
-          : ['ROLE_USER'];
-
-      return {
-        token: `eyJhbGciOiJFUzI1NiJ9.${btoa(
-          JSON.stringify({
-            sub: u,
-            roles,
-            iss: 'omnipay-auth-service',
-            exp: Math.floor(Date.now() / 1000) + 3600,
-          })
-        )}.simulated_sig_${Date.now()}`,
-        type: 'Bearer',
-        status: 'SUCCESS',
-        username: u,
-        roles,
-        expiresAt: Math.floor(Date.now() / 1000) + 3600,
-      };
-    }
-
-    throw new AuthApiError(401, 'Identifiant ou mot de passe invalide.');
+    console.warn('[OmniPay Auth API] Erreur réseau, bascule sur le mode résilience démo.');
   }
+
+  // Mode résilience / démonstration locale hors-ligne si backend non démarré
+  const u = credentials.username.toLowerCase();
+  if (credentials.password === 'password' || credentials.password.length >= 6) {
+    const roles: Role[] =
+      u === 'admin'
+        ? ['ROLE_ADMIN', 'ROLE_USER']
+        : u === 'auditor'
+        ? ['ROLE_AUDITOR']
+        : ['ROLE_USER'];
+
+    return {
+      token: `eyJhbGciOiJFUzI1NiJ9.${btoa(
+        JSON.stringify({
+          sub: u,
+          roles,
+          iss: 'omnipay-auth-service',
+          exp: Math.floor(Date.now() / 1000) + 3600,
+        })
+      )}.simulated_sig_${Date.now()}`,
+      type: 'Bearer',
+      status: 'SUCCESS',
+      username: u,
+      roles,
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+    };
+  }
+
+  throw new AuthApiError(401, 'Identifiant ou mot de passe incorrect.');
 }
