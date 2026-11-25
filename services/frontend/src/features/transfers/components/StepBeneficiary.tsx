@@ -1,8 +1,17 @@
 import React, { useState, useId } from 'react';
-import { Search, UserPlus, CheckCircle2, AlertCircle, Building2, ShieldCheck, ArrowRight } from 'lucide-react';
+import {
+  MagnifyingGlass,
+  UserPlus,
+  CheckCircle,
+  WarningCircle,
+  Buildings,
+  ShieldCheck,
+  ArrowRight,
+} from '@phosphor-icons/react';
 import { useTransferStore } from '../transfers.store';
 import { validateIban, maskIban } from '../../../shared/lib/iban';
 import { Beneficiary } from '../transfers.types';
+import { Button } from '@/shared/ui';
 
 export const StepBeneficiary: React.FC = () => {
   const { beneficiaries, draft, selectBeneficiary, addCustomBeneficiary, setStep } = useTransferStore();
@@ -18,14 +27,12 @@ export const StepBeneficiary: React.FC = () => {
   const newNameId = useId();
   const newIbanId = useId();
 
-  // Filtered beneficiaries
   const filtered = beneficiaries.filter(
     (b) =>
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.iban.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Real-time IBAN validation
   const ibanValidation = newIban.length >= 4 ? validateIban(newIban) : null;
 
   const handleSelectExisting = (beneficiary: Beneficiary) => {
@@ -59,45 +66,47 @@ export const StepBeneficiary: React.FC = () => {
           <label htmlFor={searchInputId} className="sr-only">
             Rechercher un bénéficiaire
           </label>
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <MagnifyingGlass className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-platinum-400 pointer-events-none" />
           <input
             id={searchInputId}
             type="text"
             placeholder="Rechercher par nom, IBAN ou banque..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#070A12] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--color-gold)] transition-colors"
+            className="w-full h-10 bg-obsidian-950 border border-obsidian-700 rounded-lg pl-10 pr-4 body-6 text-platinum-50 placeholder-platinum-500 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors"
           />
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setShowAddForm(!showAddForm)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-[var(--color-gold)]/10 text-[var(--color-gold)] border border-[var(--color-gold)]/30 hover:bg-[var(--color-gold)]/20 transition-all cursor-pointer"
+          className="h-10"
         >
-          <UserPlus className="w-4 h-4" />
+          <UserPlus className="w-4 h-4 shrink-0" />
           <span>{showAddForm ? 'Liste des contacts' : 'Nouveau compte / IBAN'}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Add new beneficiary form */}
-      {showAddForm ? (
+      {showAddForm && (
         <form
           onSubmit={handleAddNewBeneficiary}
-          className="bg-[#070A12]/90 border border-[var(--color-gold)]/30 rounded-2xl p-6 space-y-5 animate-in fade-in duration-200"
+          className="bg-obsidian-950/90 border border-gold-400/35 rounded-xl p-6 space-y-5"
         >
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
-            <h4 className="text-base font-semibold text-white flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-[var(--color-gold)]" />
-              Saisie et validation sécurisée IBAN
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-obsidian-700/60">
+            <h4 className="title-3 text-platinum-50 font-semibold flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-gold-400 shrink-0" />
+              <span>Saisie et validation sécurisée IBAN</span>
             </h4>
-            <span className="text-xs text-gray-400">Algorithme ISO 7064 Mod-97</span>
+            <span className="caption-5 font-mono text-platinum-400">Algorithme ISO 7064 Mod 97</span>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label htmlFor={newNameId} className="block text-xs font-medium text-gray-300 mb-1.5">
-                Nom complet du titulaire ou raison sociale *
+              <label htmlFor={newNameId} className="block caption-3 text-platinum-200 mb-1.5">
+                Nom complet du titulaire ou raison sociale
               </label>
               <input
                 id={newNameId}
@@ -105,32 +114,30 @@ export const StepBeneficiary: React.FC = () => {
                 placeholder="Ex. Alice Dupont ou Entreprise SAS"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="w-full bg-[#0B101E] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-gold)] transition-colors"
+                className="w-full h-10 bg-obsidian-900 border border-obsidian-700 rounded-lg px-3.5 body-6 text-platinum-50 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors"
                 required
               />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor={newIbanId} className="block text-xs font-medium text-gray-300">
-                  Numéro de compte international (IBAN) *
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <label htmlFor={newIbanId} className="block caption-3 text-platinum-200">
+                  Numéro de compte international (IBAN)
                 </label>
                 {ibanValidation && (
                   <span
-                    className={`text-xs inline-flex items-center gap-1 font-medium ${
-                      ibanValidation.isValid
-                        ? 'text-[var(--color-emerald)]'
-                        : 'text-[var(--color-crimson)]'
+                    className={`caption-4 inline-flex items-center gap-1 ${
+                      ibanValidation.isValid ? 'text-emerald-500' : 'text-crimson-500'
                     }`}
                   >
                     {ibanValidation.isValid ? (
                       <>
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Clé Modulo-97 validée ({ibanValidation.countryCode})</span>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Clé Modulo 97 validée ({ibanValidation.countryCode})</span>
                       </>
                     ) : (
                       <>
-                        <AlertCircle className="w-3.5 h-3.5" />
+                        <WarningCircle className="w-4 h-4" />
                         <span>Clé de contrôle invalide</span>
                       </>
                     )}
@@ -143,60 +150,62 @@ export const StepBeneficiary: React.FC = () => {
                 placeholder="FR76 •••• •••• •••• •••• •••• •••"
                 value={newIban}
                 onChange={(e) => setNewIban(e.target.value.toUpperCase())}
-                className={`w-full bg-[#0B101E] border rounded-xl px-4 py-2.5 text-sm font-mono text-white tracking-wider focus:outline-none transition-colors ${
+                className={`w-full h-10 bg-obsidian-900 border rounded-lg px-3.5 body-6 font-mono text-platinum-50 tracking-wider focus:outline-none transition-colors ${
                   ibanValidation?.isValid
-                    ? 'border-[var(--color-emerald)]/60 focus:border-[var(--color-emerald)]'
+                    ? 'border-emerald-500/60 focus:border-emerald-500'
                     : ibanValidation && !ibanValidation.isValid
-                    ? 'border-[var(--color-crimson)]/60 focus:border-[var(--color-crimson)]'
-                    : 'border-white/10 focus:border-[var(--color-gold)]'
+                    ? 'border-crimson-500/60 focus:border-crimson-500'
+                    : 'border-obsidian-700 focus:border-gold-400'
                 }`}
                 required
               />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Les identifiants internes ACC-xxx ne sont jamais des IBAN. Saisissez un format SEPA valide (ex: FR76...).
+              <p className="caption-5 text-platinum-400 mt-1.5">
+                Les identifiants internes ne sont pas des IBAN. Saisissez un format SEPA valide (ex. FR76).
               </p>
             </div>
           </div>
 
           {formError && (
-            <div className="p-3 bg-[var(--color-crimson)]/10 border border-[var(--color-crimson)]/30 rounded-xl flex items-center gap-2 text-xs text-[var(--color-crimson)]">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="p-3 bg-crimson-500/10 border border-crimson-500/30 rounded-lg flex items-center gap-2 caption-4 text-crimson-500">
+              <WarningCircle className="w-4 h-4 shrink-0" />
               <span>{formError}</span>
             </div>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 rounded-xl text-xs font-medium text-gray-400 hover:text-white transition-colors"
             >
               Annuler
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="primary"
+              size="sm"
               disabled={!ibanValidation?.isValid}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[#070A12] shadow-lg shadow-[var(--color-gold)]/20 hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span>Enregistrer et continuer</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </Button>
           </div>
         </form>
-      ) : null}
+      )}
 
       {/* Beneficiary list */}
       <div className="space-y-3">
-        <div className="text-xs font-medium text-gray-400 uppercase tracking-wider px-1">
-          Bénéficiaires enregistrés & vérifiés ({filtered.length})
+        <div className="caption-3 text-platinum-400">
+          Bénéficiaires enregistrés et vérifiés ({filtered.length})
         </div>
 
         {filtered.length === 0 ? (
-          <div className="text-center py-10 bg-[#070A12]/50 border border-white/5 rounded-2xl">
-            <Building2 className="w-8 h-8 mx-auto text-gray-500 mb-2 opacity-50" />
-            <p className="text-sm text-gray-400">Aucun bénéficiaire correspondant trouvé.</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Cliquez sur &quot;Nouveau compte / IBAN&quot; pour ajouter un destinataire.
+          <div className="text-center py-10 bg-obsidian-950/60 border border-obsidian-700/60 rounded-xl space-y-2">
+            <Buildings className="w-8 h-8 mx-auto text-platinum-500" />
+            <p className="body-5 text-platinum-200">Aucun bénéficiaire correspondant.</p>
+            <p className="caption-5 text-platinum-400">
+              Utilisez « Nouveau compte / IBAN » pour ajouter un destinataire.
             </p>
           </div>
         ) : (
@@ -215,18 +224,18 @@ export const StepBeneficiary: React.FC = () => {
                   }}
                   role="button"
                   tabIndex={0}
-                  className={`group w-full text-left p-4 rounded-xl border transition-all duration-200 flex items-center justify-between cursor-pointer ${
+                  className={`group w-full text-left p-4 rounded-xl border transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.99] flex items-center justify-between cursor-pointer ${
                     isSelected
-                      ? 'bg-[var(--color-gold)]/10 border-[var(--color-gold)]/50 shadow-md shadow-[var(--color-gold)]/10'
-                      : 'bg-[#0B101E]/80 border-white/5 hover:border-white/20 hover:bg-[#0F1626]'
+                      ? 'bg-gold-400/10 border-gold-400/50'
+                      : 'bg-obsidian-950/60 border-obsidian-700/70 hover:border-gold-400/40 hover:bg-obsidian-800/80'
                   }`}
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div
-                      className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition-transform group-hover:scale-105 ${
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center caption-3 shrink-0 transition-colors duration-300 ${
                         isSelected
-                          ? 'bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-light)] text-[#070A12]'
-                          : 'bg-white/5 text-[var(--color-gold)] border border-white/10'
+                          ? 'bg-gold-400 text-obsidian-950'
+                          : 'bg-obsidian-800 text-gold-400 border border-obsidian-700'
                       }`}
                     >
                       {b.avatarInitials}
@@ -234,33 +243,33 @@ export const StepBeneficiary: React.FC = () => {
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-white truncate group-hover:text-[var(--color-gold)] transition-colors">
+                        <span className="body-4 text-platinum-50 truncate group-hover:text-gold-400 transition-colors">
                           {b.name}
                         </span>
                         {b.isRecent && (
-                          <span className="px-2 py-0.5 text-[10px] font-medium bg-[var(--color-emerald)]/10 text-[var(--color-emerald)] border border-[var(--color-emerald)]/20 rounded-md">
+                          <span className="px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/25 rounded-md">
                             Récent
                           </span>
                         )}
                       </div>
-                      <div className="text-xs font-mono text-gray-400 truncate mt-0.5">
+                      <div className="caption-5 font-mono tabular-nums text-platinum-400 truncate mt-0.5">
                         {maskIban(b.iban)}
                       </div>
-                      <div className="text-[11px] text-gray-500 truncate mt-0.5">
+                      <div className="caption-5 text-platinum-500 truncate mt-0.5">
                         {b.bankName}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0 ml-3">
-                    <span className="text-xs font-medium text-gray-400 group-hover:text-white transition-colors hidden sm:inline">
+                    <span className="caption-4 text-platinum-400 group-hover:text-platinum-50 transition-colors hidden sm:inline">
                       Sélectionner
                     </span>
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-colors duration-300 ${
                         isSelected
-                          ? 'bg-[var(--color-gold)] text-[#070A12] border-[var(--color-gold)]'
-                          : 'border-white/10 text-gray-400 group-hover:border-[var(--color-gold)] group-hover:text-[var(--color-gold)]'
+                          ? 'bg-gold-400 text-obsidian-950 border-gold-400'
+                          : 'border-obsidian-700 text-platinum-400 group-hover:border-gold-400 group-hover:text-gold-400'
                       }`}
                     >
                       <ArrowRight className="w-4 h-4" />

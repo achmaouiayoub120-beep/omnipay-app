@@ -1,14 +1,14 @@
 import React from 'react';
 import {
-  ArrowRightLeft,
+  ArrowsLeftRight,
   Briefcase,
   ShoppingBag,
-  Server,
-  Utensils,
+  HardDrives,
+  ForkKnife,
   ShoppingCart,
-  TrendingUp,
-  ChevronRight,
-} from 'lucide-react';
+  TrendUp,
+  CaretRight,
+} from '@phosphor-icons/react';
 import { Transaction, TransactionCategory } from '../transactions.types';
 import { formatMinorToCurrency } from '../../../shared/lib/money';
 import { maskIban } from '../../../shared/lib/iban';
@@ -19,45 +19,45 @@ const CATEGORY_CONFIG: Record<
 > = {
   transfer: {
     label: 'Virement',
-    icon: ArrowRightLeft,
-    colorClass: 'text-[var(--color-gold)]',
-    bgClass: 'bg-[var(--color-gold)]/10 border-[var(--color-gold)]/30',
+    icon: ArrowsLeftRight,
+    colorClass: 'text-gold-400',
+    bgClass: 'bg-gold-400/10 border-gold-400/30',
   },
   salary: {
     label: 'Salaire',
     icon: Briefcase,
-    colorClass: 'text-[var(--color-emerald)]',
-    bgClass: 'bg-[var(--color-emerald)]/10 border-[var(--color-emerald)]/30',
+    colorClass: 'text-emerald-500',
+    bgClass: 'bg-emerald-500/10 border-emerald-500/30',
   },
   shopping: {
     label: 'Achats',
     icon: ShoppingBag,
-    colorClass: 'text-purple-400',
-    bgClass: 'bg-purple-500/10 border-purple-500/30',
+    colorClass: 'text-platinum-200',
+    bgClass: 'bg-obsidian-800 border-obsidian-600',
   },
   services: {
     label: 'Services & Cloud',
-    icon: Server,
-    colorClass: 'text-sky-400',
-    bgClass: 'bg-sky-500/10 border-sky-500/30',
+    icon: HardDrives,
+    colorClass: 'text-platinum-200',
+    bgClass: 'bg-obsidian-800 border-obsidian-600',
   },
   dining: {
     label: 'Restaurants & Sorties',
-    icon: Utensils,
-    colorClass: 'text-[var(--color-amber)]',
-    bgClass: 'bg-[var(--color-amber)]/10 border-[var(--color-amber)]/30',
+    icon: ForkKnife,
+    colorClass: 'text-amber-500',
+    bgClass: 'bg-amber-500/10 border-amber-500/30',
   },
   groceries: {
-    label: 'Alimentation & Bio',
+    label: 'Alimentation',
     icon: ShoppingCart,
-    colorClass: 'text-emerald-400',
+    colorClass: 'text-emerald-500',
     bgClass: 'bg-emerald-500/10 border-emerald-500/30',
   },
   investment: {
     label: 'Épargne & Rendement',
-    icon: TrendingUp,
-    colorClass: 'text-cyan-400',
-    bgClass: 'bg-cyan-500/10 border-cyan-500/30',
+    icon: TrendUp,
+    colorClass: 'text-gold-300',
+    bgClass: 'bg-gold-400/10 border-gold-400/30',
   },
 };
 
@@ -90,30 +90,30 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
       }}
       role="button"
       tabIndex={0}
-      className="group w-full p-3.5 sm:p-4 rounded-xl bg-[#0B101E]/70 hover:bg-[#0F1626] border border-white/5 hover:border-white/15 transition-all flex items-center justify-between cursor-pointer"
+      className="group w-full p-3.5 sm:p-4 rounded-xl bg-obsidian-950/60 hover:bg-obsidian-800/80 border border-obsidian-700/70 hover:border-gold-400/40 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.99] flex items-center justify-between cursor-pointer"
     >
       <div className="flex items-center gap-3.5 min-w-0">
         <div
-          className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${config.bgClass} ${config.colorClass}`}
+          className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${config.bgClass} ${config.colorClass}`}
         >
           <Icon className="w-5 h-5" />
         </div>
 
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-white truncate group-hover:text-[var(--color-gold)] transition-colors">
+            <span className="body-4 text-platinum-50 truncate group-hover:text-gold-400 transition-colors">
               {transaction.counterpartyName}
             </span>
-            <span className="text-[10px] text-gray-500 hidden sm:inline font-mono">
+            <span className="caption-5 text-platinum-500 hidden sm:inline font-mono tabular-nums">
               {timeStr}
             </span>
           </div>
 
-          <div className="text-xs text-gray-400 truncate mt-0.5">
+          <div className="caption-5 text-platinum-400 truncate mt-0.5">
             {transaction.reason}
           </div>
 
-          <div className="text-[11px] font-mono text-gray-500 truncate mt-0.5 sm:hidden">
+          <div className="caption-5 font-mono tabular-nums text-platinum-500 truncate mt-0.5 sm:hidden">
             {maskIban(transaction.counterpartyIban)}
           </div>
         </div>
@@ -122,19 +122,19 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({
       <div className="flex items-center gap-3 shrink-0 ml-3">
         <div className="text-right">
           <div
-            className={`font-mono text-sm sm:text-base font-bold tracking-tight ${
-              isDebit ? 'text-white' : 'text-[var(--color-emerald)]'
+            className={`font-mono tabular-nums body-4 sm:body-1 ${
+              isDebit ? 'text-platinum-50' : 'text-emerald-500'
             }`}
           >
             {isDebit ? '-' : '+'}
             {formatMinorToCurrency(transaction.amountMinor)}
           </div>
-          <div className="text-[11px] font-mono text-gray-500 hidden sm:block">
+          <div className="caption-5 font-mono tabular-nums text-platinum-500 hidden sm:block">
             {maskIban(transaction.counterpartyIban)}
           </div>
         </div>
 
-        <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-[var(--color-gold)] transition-colors" />
+        <CaretRight className="w-4 h-4 text-platinum-500 group-hover:text-gold-400 transition-colors" />
       </div>
     </div>
   );
