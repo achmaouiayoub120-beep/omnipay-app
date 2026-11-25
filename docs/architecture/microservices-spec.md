@@ -1,4 +1,4 @@
-# Spécification technique des microservices OmniPay (P2 — S1 à S3)
+# Spécification technique des microservices OmniPay (P2 — S1 à S4)
 
 > Mini-banque **simulée** à des fins académiques : aucune logique financière réelle,
 > comptes et soldes de démonstration uniquement, aucun secret dans le code.
@@ -190,14 +190,9 @@ Actuator (`/actuator/health/readiness` : 10 s / 5 s, `/actuator/health/liveness`
 
 ### Test de charge (k6)
 
-```bash
-# L'API exige un JWT : le script se connecte en ADMIN (mot de passe fourni par K6_PASSWORD, jamais dans le dépôt)
-k6 run -e K6_PASSWORD=<mot-de-passe-admin-de-demo> tests/k6/load-test-transactions.js     # 10 VUs, 1 min, localhost:8082
-k6 run -e K6_PASSWORD=... -e BASE_URL=http://<noeud>:<nodePort> -e AUTH_URL=http://<noeud>:<nodePort> tests/k6/load-test-transactions.js
-```
-
-Seuils : `http_req_duration` p95 < 200 ms, `http_req_failed` < 1 %. Les virements alternent
-Alice → Bob / Bob → Alice pour que les soldes restent stables pendant la minute de test.
+Banc de la Semaine 4 : `tests/load/run-load-test.sh` (Bash) ou `tests/load/run-load-test.ps1` (PowerShell 7+), 50 → 150 VUs sous JWT.
+Les mots de passe de démo sont lus dans `K6_ALICE_PASSWORD` et `K6_BOB_PASSWORD` (jamais dans le dépôt). Détails, seuils et usage : §7.2.
+L'ancien script `tests/k6/load-test-transactions.js` (10 VUs, 1 min, compte ADMIN via `K6_PASSWORD`) reste utilisable.
 
 ## 6. Sécurité applicative, idempotence et portail web (Semaine 3)
 
@@ -231,8 +226,8 @@ Alice → Bob / Bob → Alice pour que les soldes restent stables pendant la min
   CSS local (glassmorphism), aucune ressource externe : **CSP stricte** `default-src 'self'`, fonctionne hors-ligne.
 - Reverse-proxy : `/api/auth/` → `auth-service:8081`, `/api/transactions` → `transaction-service:8082` ; `/health` pour les sondes.
   Sur Kubernetes, les cibles viennent d'un ConfigMap généré par le chart (`<release>-auth`, `<release>-transaction`).
-- Fonctions : connexion JWT (`sessionStorage`), carte virtuelle, solde / revenus / dépenses du mois, virement avec `X-Idempotency-Key`
-  automatique, historique filtrable, compte à rebours d'expiration du jeton.
+- Fonctions : connexion JWT (`sessionStorage`), carte virtuelle, solde, entrées / sorties calculées sur l'historique, virement avec `X-Idempotency-Key`
+  automatique, historique filtrable, compte à rebours d'expiration du jeton (voir §7.1 pour la Semaine 4).
 - **Outils Jury** : injecter 50 virements (trafic Prometheus/Grafana), simuler des erreurs HTTP 500 (`X-Chaos-Fail`, ROLE_ADMIN, `OMNIPAY_CHAOS_ENABLED=true`),
   décoder le JWT (avec vérification côté serveur via `/api/auth/validate`) et tester l'idempotence (double envoi de la même clé).
 - Helm : `frontend-deployment.yaml`, `frontend-service.yaml`, `frontend-configmap.yaml`, `ingress.yaml` (`app.omnipay.local`, `omnipay.local`) ;
@@ -241,42 +236,380 @@ Alice → Bob / Bob → Alice pour que les soldes restent stables pendant la min
 
 ---
 
-## 7. Évolutions Semaine 4 (S4) : Frontend React 18 Ultra, Polishing UI/UX & Tests de Charge k6 (P2)
+## 7. Semaine 4 (P2) : portail React 18, banc de charge k6 et robustesse
 
-### 7.1 Architecture Frontend React 18 Ultra (Fintech Glassmorphism 2.0)
-En Semaine 4, le portail web client passe au niveau supérieur en intégrant **React 18** natif hébergé localement (`src/vendor/react.production.min.js` et `react-dom.production.min.js`), sans aucune dépendance réseau externe (100% conforme à la directive CSP `script-src 'self'` et compatible mode hors-ligne).
+### 7.1 Portail web (`services/frontend/src`)
 
-#### Fonctionnalités Majeures Ajoutées :
-1. **Carte Bancaire 3D Interactive (Apple Card / Revolut Hologramme) :**
-   - Effet de parallaxe 3D dynamique réagissant aux mouvements de la souris (`perspective: 1200px`, calcul de `rotateX` et `rotateY`).
-   - Reflet holographique animé (`vcard-shine`) suivant l'orientation de la lumière.
-   - Puce dorée texturée avec circuits imprimés.
-   - Flip 3D (face arrière) avec bande magnétique, cryptogramme dynamique (CVV 842) et bouton de copie instantanée de l'IBAN.
-   - Sélecteur de skins de carte en 1-clic : *Obsidian Cyber*, *Emerald VIP*, *Platinum Frost*.
-2. **Badge Télémétrie HUD Zero-Trust Interactif :**
-   - Radar vert pulsant en temps réel dans l'en-tête.
-   - Modal de télémétrie affichant la latence en millisecondes de chaque microservice (`Auth: 12ms`, `Tx: 18ms`, `Notif: 8ms`, `Vault: NodePort 30006`).
-   - Synthèse de sécurité : TLS 1.3 Strict, eBPF Falco actif, NetworkPolicies Deny-All, Admission Kyverno Cosign.
-3. **Graphique SVG Donut Dynamique des Dépenses :**
-   - Répartition visuelle interactive des dépenses (Virements 45%, Services 30%, Assurances 25%).
-4. **Carrousel des Bénéficiaires Fréquents :**
-   - Sélection rapide en 1-clic d'un contact (Alice, Bob, ESTC Treasury, Réserve SRE) pré-remplissant automatiquement le formulaire de virement.
-5. **Moteur Sonore Fintech & Célébration Visuelle :**
-   - Web Audio API pure (zéro fichier audio) synthétisant un carillon d'accord triomphal lors d'un virement réussi.
-   - Explosion de confettis néon sur Canvas 2D lors de la validation d'un transfert.
+React 18 est servi localement (`src/vendor/react*.production.min.js`) : aucune ressource externe, CSP `script-src 'self'` respectée,
+fonctionnement hors-ligne. Le portail appelle l'**API réelle** (aucune donnée simulée côté client) :
 
-### 7.2 Banc de Tests de Charge k6 Scalé (50 à 150 VUs)
-Pour alimenter en direct la stack d'observabilité de Moad (P5) lors de la soutenance (Tracing Tempo et Golden Signals RED), le script k6 a été enrichi (`tests/load/k6-transactions-load.js`) :
-- **Profil de montée en charge :**
-  - Étape 1 : 0 ➔ 50 VUs en 20s (Ramp-up).
-  - Étape 2 : 50 ➔ 150 VUs pendant 1m30s (Plateau de charge).
-  - Étape 3 : 150 ➔ 0 VU en 20s (Ramp-down).
-- **Seuils de qualité (Thresholds) :**
-  - Latence p95 < 250 ms.
-  - Taux d'erreurs HTTP < 1%.
-  - Taux de réussite des vérifications > 99%.
-- **Orchestration :** Scripts exécutables `tests/load/run-load-test.sh` (Bash) et `tests/load/run-load-test.ps1` (PowerShell).
+| Écran / action | Appel réel |
+|---|---|
+| Connexion | `POST /api/auth/login` → JWT HS256 conservé dans `sessionStorage` (jamais de mot de passe dans le code du portail) |
+| Solde | `GET /api/transactions/accounts/me` |
+| Historique | `GET /api/transactions` (100 derniers virements) |
+| Virement | `POST /api/transactions` avec `X-Idempotency-Key` |
+| Décodage / vérification du JWT | lecture locale des claims + `GET /api/auth/validate` |
 
-### 7.3 Matrice de Résilience & Découplage
-- **Résilience Découplée :** La défaillance temporaire de `notification-service` n'interrompt pas les opérations financières de `transaction-service`.
-- **Idempotence :** Un double-clic ou retry réseau avec le même `X-Idempotency-Key` garantit mathématiquement l'unicité de l'opération en base PostgreSQL.
+**Retours utilisateur (toasts, charte `#0f172a` / `#10b981` / `#ef4444` / `#f59e0b`)**
+
+| Couleur | Déclencheur | Message |
+|---|---|---|
+| Vert | HTTP 200, statut `SUCCESS` | « Virement confirmé » + montant, destinataire et identifiant de transaction |
+| Rouge | HTTP 422 | « Fonds insuffisants : solde disponible 1 000,00 € vs montant requis 10 000,00 € » (solde relu juste après le rejet) |
+| Rouge | autres rejets (400, 403, 404, 5xx, réseau) | message fixe par code (jamais le détail serveur) |
+| Jaune | HTTP 200, statut `IDEMPOTENT_REPLAY` | « Transaction déjà enregistrée, pas de double prélèvement » |
+
+**Idempotence côté portail.** Une clé UUID est attachée à une *intention* de virement (compte + montant + motif). Tous les clics sur la même
+saisie réutilisent la même clé ; le bouton n'est volontairement pas désactivé pendant l'envoi. Trois clics = trois requêtes avec la même clé :
+le serveur exécute un seul virement (`SUCCESS`) et rejoue la réponse pour les deux autres (`IDEMPOTENT_REPLAY`). La clé est renouvelée après
+un succès, un rejeu ou un rejet définitif (4xx) ; elle est conservée après une erreur réseau ou 5xx pour pouvoir réessayer sans double débit.
+
+**Auto-rafraîchissement.** Solde et historique sont relus après chaque virement (succès, rejeu ou rejet) et toutes les 10 secondes,
+sans rechargement de page.
+
+**Bouton « Injecter Panne Notification » (console jury).** *Simulation côté portail* : elle affiche le notification-service hors service
+(télémétrie) et rappelle, après chaque virement, que celui-ci reste validé. Elle n'est pas une vraie coupure : `transaction-service` n'appelle
+jamais `notification-service` et `/api/notifications` n'est pas routé par Nginx. La preuve réelle de ce découplage est
+`docker compose stop notification-service`, puis un virement (il reste `SUCCESS`).
+
+Les autres boutons de la console jury envoient du vrai trafic : 50 virements de 0,50 € (5 en parallèle), double envoi simultané de la même
+clé, et rafale d'erreurs HTTP 500 (`X-Chaos-Fail`, ROLE_ADMIN, `OMNIPAY_CHAOS_ENABLED=true`).
+
+### 7.2 Banc de charge k6 (`tests/load/`)
+
+Scénario par utilisateur virtuel : (a) `POST /api/auth/login` (alice pour les VUs impairs, bob pour les pairs) ; (b) `GET /api/transactions/accounts/me`
+puis `GET /api/transactions` ; (c) `POST /api/transactions` de 0,01 € vers l'autre compte, `X-Idempotency-Key` = UUID v4 aléatoire unique.
+
+| Élément | Valeur |
+|---|---|
+| Étapes | 0 → 50 VUs en 20 s, 50 → 150 VUs en 1 min 30, 150 → 0 en 20 s |
+| Seuils | `http_req_failed` < 1 % ; `http_req_duration{endpoint:transfer}` p(95) < 250 ms ; `checks` > 99 % |
+| Secrets | `K6_ALICE_PASSWORD` et `K6_BOB_PASSWORD` obligatoires (environnement uniquement) ; le script s'arrête avec un message explicite s'ils manquent |
+| Cibles | `AUTH_URL` (défaut `http://localhost:8081`), `TX_URL` (défaut `http://localhost:8082`) |
+| Export Grafana | `K6_OUT=experimental-prometheus-rw` et `K6_PROMETHEUS_RW_SERVER_URL` (transmis au conteneur) |
+
+```bash
+export K6_ALICE_PASSWORD=...  K6_BOB_PASSWORD=...       # saisis à la main, jamais commités
+tests/load/run-load-test.sh --smoke                       # 1 VU, 10 s : vérification du banc
+tests/load/run-load-test.sh &                             # profil complet en arrière-plan
+```
+
+```powershell
+$env:K6_ALICE_PASSWORD = Read-Host -MaskInput 'alice'; $env:K6_BOB_PASSWORD = Read-Host -MaskInput 'bob'
+./tests/load/run-load-test.ps1 -Smoke                     # PowerShell 7+ ; -Check vérifie seulement les prérequis
+```
+
+Les deux lanceurs utilisent `k6` s'il est installé, sinon l'image `grafana/k6:0.54.0` (script passé sur l'entrée standard, mots de passe transmis
+par `-e NOM` sans valeur). Sous Docker Desktop, `localhost` est réécrit en `host.docker.internal`. Le code de sortie est celui de k6 (99 = seuil franchi).
+L'ancien script `tests/k6/load-test-transactions.js` (10 VUs, 1 min) reste disponible.
+
+---
+
+## 8. Modèle de données
+
+Il n'y a **aucune entité JPA** : l'accès aux données passe par `JdbcClient` (SQL explicite) et le schéma appartient à Flyway. Les « entités » métier
+correspondent aux tables suivantes :
+
+| Entité métier | Table | Service / migration |
+|---|---|---|
+| `Account` | `accounts` | transaction — `V1`, comptes de démo ajoutés par `V3` |
+| `Transaction` | `transactions` | transaction — `V1`, colonne `reason` ajoutée par `V3` |
+| `UserRole` | colonne `users.role` (`USER`, `ADMIN`, `AUDITOR`), pas de table dédiée | auth — `V1`, rôles par `V2` |
+| `IdempotencyRecord` | `idempotency_keys` | transaction — `V2` |
+| (utilisateur) | `users` | auth — `V1` |
+
+```mermaid
+erDiagram
+    USERS ||--o{ ACCOUNTS : "owner_username (logique, inter-services)"
+    ACCOUNTS ||--o{ TRANSACTIONS : "source_account / target_account (logique)"
+    TRANSACTIONS ||--o| IDEMPOTENCY_KEYS : "transaction_id (logique)"
+    USERS {
+        varchar id PK
+        varchar username UK
+        varchar password_hash "BCrypt"
+        varchar role "USER | ADMIN | AUDITOR"
+        timestamp created_at
+    }
+    ACCOUNTS {
+        varchar account_id PK
+        varchar owner_username
+        numeric balance "CHECK >= 0"
+        varchar currency
+    }
+    TRANSACTIONS {
+        varchar id PK "UUID"
+        varchar source_account
+        varchar target_account
+        numeric amount "CHECK > 0"
+        varchar status "SUCCESS"
+        varchar reason "max 140"
+        timestamp created_at
+    }
+    IDEMPOTENCY_KEYS {
+        varchar idempotency_key PK "SHA-256 hex de utilisateur+cle"
+        varchar transaction_id
+        text response_body "JSON de la reponse d'origine"
+        int status_code
+        timestamptz created_at "index idx_idempotency_created_at"
+    }
+```
+
+Points à connaître :
+
+- `users` vit dans la base de **auth** ; `accounts`, `transactions` et `idempotency_keys` dans celle de **transaction**. `owner_username` référence donc
+  `users.username` sans clé étrangère possible entre services (une base par service).
+- Il n'y a pas de clé étrangère entre `transactions` et `accounts` : l'intégrité repose sur le service (verrouillage `SELECT … FOR UPDATE` des deux comptes
+  dans l'ordre de `account_id`, vérifications d'existence et de propriété avant écriture). Évolution possible : ajouter les clés étrangères.
+- Seuls les virements réussis sont inscrits dans `transactions` (statut `SUCCESS`) ; un rejet (422, 403, …) n'écrit rien.
+- Soldes de démo réels : `ACC-ALICE-001` 1 000,00 €, `ACC-BOB-002` 500,00 €, `ACC-USER-003` 14 250,00 €, `ACC-ADMIN-004` 50 000,00 €.
+- `idempotency_keys` n'est pas purgée automatiquement.
+
+---
+
+## 9. Documentation OpenAPI v3
+
+Rédigée à la main d'après le code (`springdoc` n'est pas intégré). Les trois services partagent le schéma d'erreur de la section 10.
+
+```yaml
+openapi: 3.0.3
+info:
+  title: OmniPay Zero-Trust API
+  version: 1.0.0
+  description: Néobanque simulée (ESTC). Auth, virements idempotents, notifications simulées. Aucun argent réel.
+servers:
+  - url: http://localhost:8081
+    description: auth-service (direct)
+  - url: http://localhost:8082
+    description: transaction-service (direct)
+  - url: http://localhost:8083
+    description: notification-service (direct)
+  - url: http://localhost:8080
+    description: portail Nginx (proxifie /api/auth/ et /api/transactions uniquement)
+tags:
+  - name: auth
+  - name: transaction
+  - name: notification
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT   # HS256, émis par auth-service, iss=omnipay-security-authority, TTL 1 h
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+        type: { type: string, example: Bearer }
+        status: { type: string, example: SUCCESS }
+        username: { type: string }
+        roles: { type: array, items: { type: string, enum: [ROLE_ADMIN, ROLE_USER, ROLE_AUDITOR] } }
+        expiresAt: { type: integer, format: int64, description: Epoch en secondes }
+    TokenClaims:
+      type: object
+      properties:
+        valid: { type: boolean }
+        subject: { type: string }
+        roles: { type: array, items: { type: string } }
+        issuer: { type: string }
+        issuedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+    TransferRequest:
+      type: object
+      required: [targetAccount, amount]
+      properties:
+        sourceAccount: { type: string, description: "Facultatif : compte de l'appelant par défaut. ROLE_USER = ses comptes seulement.", example: ACC-ALICE-001 }
+        targetAccount: { type: string, example: ACC-BOB-002 }
+        amount: { type: number, format: decimal, minimum: 0.01, description: "> 0, 2 décimales maximum", example: 250.00 }
+        reason: { type: string, maxLength: 140 }
+    TransferResponse:
+      type: object
+      properties:
+        transactionId: { type: string, format: uuid }
+        status: { type: string, enum: [SUCCESS, IDEMPOTENT_REPLAY] }
+        amount: { type: number }
+    TransactionView:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        sourceAccount: { type: string }
+        targetAccount: { type: string }
+        amount: { type: number }
+        status: { type: string, example: SUCCESS }
+        reason: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    AccountView:
+      type: object
+      properties:
+        accountId: { type: string }
+        balance: { type: number }
+        currency: { type: string, example: EUR }
+    SendRequest:
+      type: object
+      required: [recipient, message]
+      properties:
+        recipient: { type: string }
+        message: { type: string }
+    SendResponse:
+      type: object
+      properties:
+        notificationId: { type: string, example: NT-0b6f… }
+        status: { type: string, example: SENT }
+    Health:
+      type: object
+      properties:
+        status: { type: string, example: UP }
+        service: { type: string }
+    Error:
+      description: Corps d'erreur standard Spring Boot (BasicErrorController). Le champ message n'est jamais exposé.
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        status: { type: integer }
+        error: { type: string }
+        path: { type: string }
+  responses:
+    Unauthorized: { description: "Jeton absent, invalide ou expiré (corps vide)" }
+    Forbidden:
+      description: Rôle insuffisant ou compte d'un autre utilisateur
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    BadRequest:
+      description: Données invalides
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+paths:
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Authentification, émission du JWT
+      description: Limité par Nginx à 10 requêtes/s par IP (burst 30) : HTTP 429 au-delà.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } }
+      responses:
+        '200': { description: Authentifié, content: { application/json: { schema: { $ref: '#/components/schemas/LoginResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { description: Identifiants invalides, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/auth/validate:
+    get:
+      tags: [auth]
+      summary: Valide un jeton Bearer et renvoie ses claims
+      parameters:
+        - { name: Authorization, in: header, required: true, schema: { type: string, example: 'Bearer <jwt>' } }
+      responses:
+        '200': { description: Jeton valide, content: { application/json: { schema: { $ref: '#/components/schemas/TokenClaims' } } } }
+        '401': { description: Jeton absent, invalide, expiré ou d'un autre émetteur }
+  /api/auth/health:
+    get:
+      tags: [auth]
+      summary: Sonde de santé (publique)
+      responses: { '200': { description: UP, content: { application/json: { schema: { $ref: '#/components/schemas/Health' } } } } }
+  /api/transactions:
+    post:
+      tags: [transaction]
+      summary: Virement atomique et idempotent (alias /api/transactions/transfer)
+      security: [{ bearerAuth: [] }]
+      description: ROLE_USER ou ROLE_ADMIN. Débit, crédit et ligne d'historique dans une seule transaction SQL.
+      parameters:
+        - name: X-Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string, pattern: '^[A-Za-z0-9._-]{1,128}$' }
+          description: "Même clé + même utilisateur = un seul débit ; réponse d'origine rejouée avec status IDEMPOTENT_REPLAY."
+        - name: X-Chaos-Fail
+          in: header
+          required: false
+          schema: { type: string, enum: ['true'] }
+          description: Démo jury. HTTP 500 volontaire si OMNIPAY_CHAOS_ENABLED=true et ROLE_ADMIN, sinon 403.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TransferRequest' } } }
+      responses:
+        '200': { description: Virement exécuté (SUCCESS) ou rejoué (IDEMPOTENT_REPLAY), content: { application/json: { schema: { $ref: '#/components/schemas/TransferResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Compte introuvable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { description: Fonds insuffisants, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '500': { description: Erreur interne (ou panne injectée par X-Chaos-Fail) }
+    get:
+      tags: [transaction]
+      summary: 100 derniers virements (les siens ; tous pour ADMIN et AUDITOR)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Historique, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TransactionView' } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/transactions/accounts/me:
+    get:
+      tags: [transaction]
+      summary: Comptes et soldes de l'appelant (liste vide pour AUDITOR)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Comptes, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/AccountView' } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/transactions/health:
+    get:
+      tags: [transaction]
+      summary: Sonde de santé (publique)
+      responses: { '200': { description: UP, content: { application/json: { schema: { $ref: '#/components/schemas/Health' } } } } }
+  /api/notifications/send:
+    post:
+      tags: [notification]
+      summary: Envoi simulé (journalisation uniquement), sans authentification, port 8083 uniquement
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SendRequest' } } }
+      responses:
+        '200': { description: Notification simulée, content: { application/json: { schema: { $ref: '#/components/schemas/SendResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/notifications/health:
+    get:
+      tags: [notification]
+      summary: Sonde de santé
+      responses: { '200': { description: UP, content: { application/json: { schema: { $ref: '#/components/schemas/Health' } } } } }
+```
+
+---
+
+## 10. Codes d'erreur standardisés et gestion globale des exceptions
+
+### 10.1 Corps d'erreur
+
+Aucun `@ControllerAdvice` n'existe dans le code. Les contrôleurs et services lèvent des `ResponseStatusException`, que Spring MVC transforme en réponse
+via `/error` (`BasicErrorController`). Depuis Spring Boot 2.3, `server.error.include-message` vaut `never` : le **message n'est jamais renvoyé**, ce qui
+évite toute fuite d'information interne (pile, SQL, noms de classes). Le corps réel d'un rejet est :
+
+```json
+{ "timestamp": "2026-11-23T23:19:20.692+00:00", "status": 422, "error": "Unprocessable Entity", "path": "/api/transactions" }
+```
+
+Exceptions : un jeton absent ou invalide donne un **401 sans corps** (`HttpStatusEntryPoint`) ; un JSON illisible donne un 400 (`HttpMessageNotReadableException`
+traitée par Spring) ; la collision de clé d'idempotence (`DuplicateKeyException`) est captée dans `IdempotencyService` et rejouée, jamais exposée.
+
+### 10.2 Codes
+
+| HTTP | Source | Cause | Message utilisateur du portail |
+|---|---|---|---|
+| 200 `SUCCESS` | transaction | Virement exécuté | « Virement confirmé » (vert) |
+| 200 `IDEMPOTENT_REPLAY` | transaction | Clé déjà traitée : réponse d'origine rejouée, aucun second débit | « Transaction déjà enregistrée, pas de double prélèvement » (jaune) |
+| 400 | auth, transaction, notification | Champ vide ou absent ; montant ≤ 0 ou > 2 décimales ; motif > 140 caractères ; source = cible ; clé d'idempotence hors `[A-Za-z0-9._-]{1,128}` ; JSON illisible | « Données invalides » |
+| 401 | auth, transaction | Identifiants invalides (login) ; jeton absent, invalide, expiré ou d'un autre émetteur | « Identifiants invalides ou session expirée » |
+| 403 | transaction | ROLE_AUDITOR en écriture ; compte source d'un autre utilisateur ; `X-Chaos-Fail` sans droit ou désactivé | « Action refusée pour votre rôle ou pour ce compte » |
+| 404 | transaction ; Nginx | Compte introuvable ; route `/api/...` inconnue côté Nginx (dont `/api/notifications`) | « Compte destinataire introuvable » |
+| 413 | Nginx | Corps > 64 ko | — |
+| 422 | transaction | Fonds insuffisants (rien n'est écrit) | « Fonds insuffisants : solde disponible X vs montant requis Y » (rouge) |
+| 429 | Nginx | Plus de 10 requêtes/s (burst 30) sur `/api/auth/` | « Trop de tentatives » |
+| 500 | tous | Erreur inattendue, ou panne volontaire `[CHAOS] simulated failure` | « Erreur serveur : réessayez sans risque, la clé est conservée » |
+| 502 / 504 | Nginx | Microservice injoignable ou trop lent (> 30 s) | idem |
+
+### 10.3 Évolution proposée (non implémentée)
+
+Centraliser dans un `@RestControllerAdvice` partagé qui renvoie un `ProblemDetail` (RFC 9457) avec un code métier stable (`INSUFFICIENT_FUNDS`, `ACCOUNT_NOT_FOUND`, …),
+sans jamais exposer le message de l'exception. Les tests (`TransactionControllerTest`, `SecurityTest`) devraient alors être adaptés au nouveau corps.
