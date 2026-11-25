@@ -78,7 +78,36 @@ function Test-CommandExists {
     return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function Start-DockerDesktopIfNeeded {
+    $candidates = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\DockerDesktop\Docker Desktop.exe"),
+        (Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"),
+        (Join-Path ${env:ProgramFiles(x86)} "Docker\Docker\Docker Desktop.exe")
+    ) | Where-Object { $_ -and (Test-Path $_) }
+
+    $exe = $candidates | Select-Object -First 1
+    if (-not $exe) {
+        return $false
+    }
+
+    Write-Host "`n[DOCKER] Docker Desktop n'est pas encore actif. Démarrage automatique en cours..." -ForegroundColor Yellow
+    Start-Process -FilePath $exe | Out-Null
+
+    $deadline = (Get-Date).AddSeconds(90)
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 3
+        & docker info 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  ✔ Docker Desktop est prêt." -ForegroundColor Green
+            return $true
+        }
+    }
+    return $false
+}
+
 function Get-ComposeRunner {
+    param([switch]$AutoStartDocker)
+
     if (-not (Test-CommandExists "docker")) {
         throw "Docker est introuvable dans le PATH. Installez Docker Desktop avant de lancer la stack complète."
     }
@@ -88,7 +117,13 @@ function Get-ComposeRunner {
     try {
         & docker info 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
-            throw "Le daemon Docker ne répond pas. Veuillez démarrer Docker Desktop puis relancer ce script (ou utilisez -Action frontend pour le mode démo sans Docker)."
+            $started = $false
+            if ($AutoStartDocker) {
+                $started = Start-DockerDesktopIfNeeded
+            }
+            if (-not $started) {
+                throw "Le daemon Docker ne répond pas. Veuillez démarrer Docker Desktop puis relancer ce script (ou utilisez Lancer-Demo-Frontend.bat / -Action frontend pour le mode démo sans Docker)."
+            }
         }
 
         & docker compose version 2>&1 | Out-Null
@@ -328,7 +363,7 @@ try {
             Ensure-EnvFile
             Install-FrontendDependencies
 
-            $runner = Get-ComposeRunner
+            $runner = Get-ComposeRunner -AutoStartDocker
             Write-Host "`n[DOCKER] Construction des images applicatives OmniPay..." -ForegroundColor Yellow
             Invoke-Compose -Runner $runner -File $ComposeFile -ComposeArgs @("build")
 
@@ -342,7 +377,7 @@ try {
 
         "start" {
             Ensure-EnvFile
-            $runner = Get-ComposeRunner
+            $runner = Get-ComposeRunner -AutoStartDocker
 
             $upArgs = @("up", "-d")
             if (-not $NoBuild) {
@@ -459,7 +494,18 @@ try {
                 }
                 Write-Host "`n[FRONTEND] Lancement du serveur Vite sur http://localhost:3000 ..." -ForegroundColor Green
                 if ($OpenBrowser) {
-                    Start-Process "http://localhost:3000"
+                    Start-Job -ScriptBlock {
+                        for ($i = 0; $i -lt 30; $i++) {
+                            try {
+                                $r = Invoke-WebRequest -Uri "http://localhost:3000/" -TimeoutSec 1 -UseBasicParsing -ErrorAction Stop
+                                if ($r.StatusCode -ge 200) {
+                                    Start-Process "http://localhost:3000"
+                                    break
+                                }
+                            } catch {}
+                            Start-Sleep -Milliseconds 500
+                        }
+                    } | Out-Null
                 }
                 & npm run dev -- --port 3000
             } finally {
