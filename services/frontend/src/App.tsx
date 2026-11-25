@@ -9,6 +9,7 @@ import { useCardsStore } from '@/features/cards/cards.store';
 import { useTransactionsStore } from '@/features/transactions/transactions.store';
 import { useSecurityStore } from '@/features/security/security.store';
 import { useJuryStore } from '@/features/jury/jury.store';
+import { useAccountsStore } from '@/features/accounts/accounts.store';
 import { CreditCard3D } from '@/features/cards/CreditCard3D';
 import { AccountSummary } from '@/features/dashboard/AccountSummary';
 import { BalanceEvolutionChart } from '@/features/dashboard/BalanceEvolutionChart';
@@ -25,7 +26,7 @@ import {
   canAccessControlTower,
   getRoleBadgeInfo,
 } from '@/features/security/rbac';
-import { INTERNAL_ACCOUNTS } from '@/shared/lib/iban';
+import { INTERNAL_ACCOUNTS, accountIdForUsername } from '@/shared/lib/iban';
 import { formatMinorToCurrency } from '@/shared/lib/money';
 import {
   Button,
@@ -66,6 +67,7 @@ export function App() {
   } = useTransactionsStore();
   const { activeSessions, trustedDevices, auditLogs } = useSecurityStore();
   const { metrics, openDrawer } = useJuryStore();
+  const { accounts, refresh: refreshAccounts, reset: resetAccounts } = useAccountsStore();
 
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [commandOpen, setCommandOpen] = useState(false);
@@ -82,6 +84,20 @@ export function App() {
       loadTransactions();
     }
   }, [isAuthenticated, transactions.length, loadTransactions]);
+
+  // Solde et historique réels : relus à la connexion puis toutes les 10 s (et après chaque virement, voir transfers.store)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      resetAccounts();
+      return undefined;
+    }
+    void refreshAccounts();
+    const timer = setInterval(() => {
+      void refreshAccounts();
+      void loadTransactions(true);
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [isAuthenticated, refreshAccounts, resetAccounts, loadTransactions]);
 
   // Raccourci clavier Ctrl+K / Cmd+K pour la palette de commande rapide
   useEffect(() => {
@@ -108,14 +124,7 @@ export function App() {
   const activeCard =
     cards.find((c) => c.cardholderName.toLowerCase().includes(username)) || cards[0];
 
-  const userAccountKey =
-    username === 'bob'
-      ? 'ACC-BOB-002'
-      : username === 'admin'
-      ? 'ACC-ADMIN-004'
-      : username === 'alice'
-      ? 'ACC-ALICE-001'
-      : 'ACC-USER-003';
+  const userAccountKey = accountIdForUsername(username);
 
   const userAccount = INTERNAL_ACCOUNTS[userAccountKey] || INTERNAL_ACCOUNTS['ACC-USER-003'];
 
@@ -123,14 +132,16 @@ export function App() {
     accountId: userAccount.accountId,
     iban: userAccount.iban,
     holderName: userAccount.holderName,
+    // Solde réel renvoyé par le serveur ; valeur de démonstration d'amorçage tant que la première lecture n'est pas arrivée.
     balanceMinor:
-      username === 'bob'
+      accounts.find((a) => a.accountId === userAccount.accountId)?.balanceMinor ??
+      (username === 'bob'
         ? 50000
         : username === 'admin'
         ? 5000000
         : username === 'alice'
         ? 100000
-        : 1425000,
+        : 1425000),
     monthlyInflowMinor: 485000,
     monthlyOutflowMinor: 145000,
   };

@@ -6,6 +6,7 @@ import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import { App } from './App';
 import { ErrorBoundary } from './shared/ui/ErrorBoundary';
+import { Toaster } from './shared/ui/toast/Toaster';
 import './shared/tokens/theme.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -14,6 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <IconContext.Provider value={{ weight: 'regular' }}>
         <ErrorBoundary>
           <App />
+          <Toaster />
         </ErrorBoundary>
       </IconContext.Provider>
     </MotionConfig>

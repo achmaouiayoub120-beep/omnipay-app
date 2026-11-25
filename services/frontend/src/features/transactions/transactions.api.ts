@@ -6,7 +6,7 @@
 
 import { useAuthStore } from '../auth/auth.store';
 import { Transaction, TransactionBackendView, TransactionCategory } from './transactions.types';
-import { INTERNAL_ACCOUNTS, resolveAccountToIban } from '../../shared/lib/iban';
+import { INTERNAL_ACCOUNTS, resolveAccountToIban, accountIdForUsername } from '../../shared/lib/iban';
 
 const API_BASE_URL =
   (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ||
@@ -126,7 +126,7 @@ function inferCategory(reason: string, counterparty: string): TransactionCategor
 export async function fetchTransactionsApi(): Promise<Transaction[]> {
   const token = useAuthStore.getState().session?.token;
   const currentUsername = useAuthStore.getState().session?.username || 'user';
-  const currentUserAccount = 'ACC-USER-003';
+  const currentUserAccount = accountIdForUsername(currentUsername);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
