@@ -1,8 +1,9 @@
 import React from 'react';
-import { CheckCircle2, PlusCircle, ShieldCheck, Printer, ArrowRight } from 'lucide-react';
+import { CheckCircle, PlusCircle, ShieldCheck, Printer, ArrowRight } from '@phosphor-icons/react';
 import { useTransferStore } from '../transfers.store';
 import { formatMinorToCurrency } from '../../../shared/lib/money';
 import { maskIban } from '../../../shared/lib/iban';
+import { Button } from '@/shared/ui';
 
 interface StepSuccessProps {
   onGoToHistory?: () => void;
@@ -20,67 +21,67 @@ export const StepSuccess: React.FC<StepSuccessProps> = ({ onGoToHistory }) => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+    <div className="space-y-6">
       {/* Success banner */}
-      <div className="bg-[#070A12] border border-[var(--color-emerald)]/40 rounded-2xl p-6 text-center space-y-4">
-        <div className="w-16 h-16 mx-auto rounded-full bg-[var(--color-emerald)]/10 text-[var(--color-emerald)] border border-[var(--color-emerald)]/30 flex items-center justify-center">
-          <CheckCircle2 className="w-10 h-10 stroke-[2.2]" />
+      <div className="bg-obsidian-950/70 border border-emerald-500/40 rounded-xl p-6 text-center space-y-5">
+        <div className="w-14 h-14 mx-auto rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 flex items-center justify-center">
+          <CheckCircle className="w-8 h-8" />
         </div>
 
-        <div>
-          <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-[var(--color-emerald)]/10 text-[var(--color-emerald)] border border-[var(--color-emerald)]/20 mb-2">
+        <div className="space-y-1.5">
+          <span className="inline-block px-3 py-1 rounded-md caption-3 bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
             Virement exécuté avec succès
           </span>
-          <h3 className="text-2xl font-bold text-white">
+          <h3 className="heading-4 font-mono tabular-nums text-platinum-50 pt-1">
             {formatMinorToCurrency(lastReceipt.amountMinor)}
           </h3>
-          <p className="text-xs text-gray-400 mt-1">
-            Transférés à <strong className="text-white">{lastReceipt.targetHolderName}</strong>
+          <p className="caption-2 text-platinum-400">
+            Transférés à <strong className="text-platinum-50">{lastReceipt.targetHolderName}</strong>
           </p>
         </div>
 
         {/* Receipt Card */}
-        <div className="bg-[#0B101E] border border-white/5 rounded-xl p-5 text-left space-y-3 font-mono text-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5 font-sans">
-            <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[var(--color-gold)]" />
-              Reçu d'opération certifié OmniPay
+        <div className="bg-obsidian-900 border border-obsidian-700/70 rounded-lg p-5 text-left space-y-4 font-mono text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-obsidian-700/60 font-sans">
+            <span className="caption-3 text-platinum-50 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-gold-400 shrink-0" />
+              Reçu d’opération certifié OmniPay
             </span>
-            <span className="text-[10px] text-gray-400">
+            <span className="caption-5 text-platinum-400 tabular-nums font-mono">
               {new Date(lastReceipt.executedAt).toLocaleString('fr-FR')}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-gray-300">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-platinum-200">
             <div>
-              <span className="text-[10px] text-gray-500 block">Référence Transaction</span>
-              <span className="text-[11px] font-bold text-[var(--color-gold)]">
+              <span className="caption-5 text-platinum-500 font-sans block">Référence transaction</span>
+              <span className="caption-3 text-gold-400">
                 {lastReceipt.transactionId}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-gray-500 block">Réseau de compensation</span>
-              <span className="text-[11px] text-gray-300">{lastReceipt.clearingNetwork}</span>
+              <span className="caption-5 text-platinum-500 font-sans block">Réseau de compensation</span>
+              <span className="caption-4 text-platinum-200">{lastReceipt.clearingNetwork}</span>
             </div>
             <div>
-              <span className="text-[10px] text-gray-500 block">Compte Débiteur</span>
-              <span className="text-[11px] text-white">
+              <span className="caption-5 text-platinum-500 font-sans block">Compte débiteur</span>
+              <span className="caption-4 text-platinum-50 tabular-nums">
                 {maskIban(lastReceipt.sourceIban)}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-gray-500 block">Compte Créditeur</span>
-              <span className="text-[11px] text-white">
+              <span className="caption-5 text-platinum-500 font-sans block">Compte créditeur</span>
+              <span className="caption-4 text-platinum-50 tabular-nums">
                 {maskIban(lastReceipt.targetIban)}
               </span>
             </div>
             <div className="sm:col-span-2">
-              <span className="text-[10px] text-gray-500 block">Motif</span>
-              <span className="text-[11px] text-gray-300">{lastReceipt.reason}</span>
+              <span className="caption-5 text-platinum-500 font-sans block">Motif</span>
+              <span className="caption-4 text-platinum-200 font-sans">{lastReceipt.reason}</span>
             </div>
-            <div className="sm:col-span-2 pt-2 border-t border-white/5">
-              <span className="text-[10px] text-gray-500 block">Sceau Cryptographique (Zero-Trust Proof)</span>
-              <span className="text-[10px] text-gray-400 break-all">
+            <div className="sm:col-span-2 pt-2 border-t border-obsidian-700/60">
+              <span className="caption-5 text-platinum-500 font-sans block">Sceau Cryptographique (Zero-Trust Proof)</span>
+              <span className="caption-5 text-platinum-400 break-all">
                 {lastReceipt.securitySealHash}
               </span>
             </div>
@@ -89,36 +90,39 @@ export const StepSuccess: React.FC<StepSuccessProps> = ({ onGoToHistory }) => {
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-        <button
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={handlePrint}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium bg-[#070A12] border border-white/10 text-gray-300 hover:text-white hover:border-white/20 transition-all cursor-pointer"
         >
-          <Printer className="w-4 h-4" />
+          <Printer className="w-4 h-4 shrink-0" />
           <span>Imprimer / Sauvegarder reçu</span>
-        </button>
+        </Button>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {onGoToHistory && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={onGoToHistory}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium text-gray-300 hover:text-white transition-colors cursor-pointer"
             >
-              <span>Voir l'historique</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+              <span>Voir l’historique</span>
+              <ArrowRight className="w-4 h-4 shrink-0" />
+            </Button>
           )}
 
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="md"
             onClick={resetWizard}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[#070A12] shadow-lg shadow-[var(--color-gold)]/20 hover:opacity-95 transition-all cursor-pointer"
           >
-            <PlusCircle className="w-4 h-4" />
+            <PlusCircle className="w-4 h-4 shrink-0" />
             <span>Nouveau virement</span>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

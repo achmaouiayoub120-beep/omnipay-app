@@ -12,6 +12,7 @@ export const tokens = {
       900: '#0B101E', // Surfaces secondaires / Panels
       850: '#0E1424', // Surface de carte
       800: '#131A2E', // Cartes actives & conteneurs
+      780: '#1A2235', // Surfaces secondaires
       750: '#18213A', // Hover sur cartes
       700: '#1E2947', // Bordures subtiles
       600: '#2A395E', // Bordures interactives
@@ -50,11 +51,11 @@ export const tokens = {
     },
     // Typographie & Platine
     platinum: {
-      50: '#F8FAFC',  // Titres & Chiffres Majeurs
-      100: '#F1F5F9', // Texte Principal
+      50: '#F5F5F5',  // Titres & Texte Principal
+      100: '#F1F5F9', // Texte Principal Clair
       200: '#E2E8F0', // Texte Secondaire Clair
-      400: '#94A3B8', // Labels & Texte Atténué
-      500: '#64748B', // Placeholders & Métadonnées
+      400: '#9CA3AF', // Labels & Texte Secondaire
+      500: '#6B7280', // Placeholders & Métadonnées
     },
     // Mode Clair (Contraste AA Garanti)
     light: {
@@ -104,9 +105,9 @@ export const tokens = {
     cardSpecular: '0 14px 34px 0 rgba(0, 0, 0, 0.65), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12)',
   },
   transitions: {
-    fast: '150ms cubic-bezier(0.16, 1, 0.3, 1)',
-    normal: '250ms cubic-bezier(0.16, 1, 0.3, 1)',
-    slow: '400ms cubic-bezier(0.16, 1, 0.3, 1)',
+    fast: '200ms cubic-bezier(0.22, 1, 0.36, 1)',
+    normal: '300ms cubic-bezier(0.22, 1, 0.36, 1)',
+    slow: '500ms cubic-bezier(0.22, 1, 0.36, 1)',
   },
   zIndex: {
     base: 0,

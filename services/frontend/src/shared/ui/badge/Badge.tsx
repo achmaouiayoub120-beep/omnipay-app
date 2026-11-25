@@ -3,24 +3,24 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/shared/lib/utils';
 
 export const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide select-none',
+  'inline-flex items-center gap-1.5 rounded-md font-medium tracking-wide select-none border transition-colors duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
   {
     variants: {
       variant: {
         neutral:
-          'bg-obsidian-800 text-platinum-400 border border-obsidian-700',
+          'bg-obsidian-800 text-platinum-400 border-obsidian-700',
         gold:
-          'bg-gold-400/15 text-gold-400 border border-gold-400/40',
+          'bg-gold-400/10 text-gold-400 border-gold-400/30',
         success:
-          'bg-emerald-500/15 text-emerald-500 border border-emerald-500/40',
+          'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
         danger:
-          'bg-crimson-500/15 text-crimson-500 border border-crimson-500/40',
+          'bg-crimson-500/10 text-crimson-500 border-crimson-500/30',
         warning:
-          'bg-amber-500/15 text-amber-500 border border-amber-500/40',
+          'bg-amber-500/10 text-amber-500 border-amber-500/30',
       },
       size: {
-        sm: 'text-[10px] px-2 py-0.5',
-        md: 'text-xs px-2.5 py-0.5',
+        sm: 'text-xs px-2 py-0.5',
+        md: 'text-xs px-2.5 py-1 font-semibold',
       },
     },
     defaultVariants: {
@@ -42,7 +42,7 @@ export function Badge({ className, variant, size, dot, children, ...props }: Bad
       {dot && (
         <span
           className={cn(
-            'h-1.5 w-1.5 rounded-full',
+            'h-1.5 w-1.5 rounded-full shrink-0',
             variant === 'success' && 'bg-emerald-500',
             variant === 'danger' && 'bg-crimson-500',
             variant === 'warning' && 'bg-amber-500',

@@ -1,8 +1,9 @@
 import React, { useState, useId } from 'react';
-import { ArrowLeft, ArrowRight, Zap, ShieldAlert, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Lightning, ShieldWarning, Check } from '@phosphor-icons/react';
 import { useTransferStore } from '../transfers.store';
 import { formatMinorToCurrency, parseInputToMinor } from '../../../shared/lib/money';
 import { maskIban } from '../../../shared/lib/iban';
+import { Button } from '@/shared/ui';
 
 // Solde compte utilisateur principal (ACC-USER-003): 14 250,00 €
 const CURRENT_BALANCE_MINOR = 1425000;
@@ -24,7 +25,6 @@ export const StepAmount: React.FC = () => {
   const isOverDailyLimit = currentAmountMinor > DAILY_LIMIT_MINOR;
 
   const handleInputChange = (raw: string) => {
-    // Only allow numbers and decimal separators
     const sanitized = raw.replace(',', '.').replace(/[^0-9.]/g, '');
     setInputValue(sanitized);
 
@@ -74,16 +74,16 @@ export const StepAmount: React.FC = () => {
     <div className="space-y-6">
       {/* Selected beneficiary badge */}
       {draft.beneficiary && (
-        <div className="flex items-center justify-between p-3.5 bg-[#070A12] border border-white/10 rounded-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[var(--color-gold)]/10 text-[var(--color-gold)] border border-[var(--color-gold)]/30 flex items-center justify-center font-bold text-xs">
+        <div className="flex items-center justify-between p-4 bg-obsidian-950/70 border border-obsidian-700/80 rounded-xl">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-gold-400/10 text-gold-400 border border-gold-400/30 flex items-center justify-center caption-3 shrink-0">
               {draft.beneficiary.avatarInitials}
             </div>
-            <div>
-              <div className="text-xs font-semibold text-white">
+            <div className="min-w-0">
+              <div className="caption-3 text-platinum-50 truncate">
                 {draft.beneficiary.name}
               </div>
-              <div className="text-[11px] font-mono text-gray-400">
+              <div className="caption-5 font-mono tabular-nums text-platinum-400 truncate">
                 {maskIban(draft.beneficiary.iban)}
               </div>
             </div>
@@ -91,7 +91,7 @@ export const StepAmount: React.FC = () => {
           <button
             type="button"
             onClick={() => setStep('beneficiary')}
-            className="text-xs font-medium text-[var(--color-gold)] hover:underline"
+            className="caption-3 text-gold-400 hover:underline shrink-0 cursor-pointer"
           >
             Modifier
           </button>
@@ -99,12 +99,12 @@ export const StepAmount: React.FC = () => {
       )}
 
       {/* Amount input block */}
-      <div className="bg-[#070A12] border border-white/10 rounded-2xl p-6 text-center space-y-4">
-        <label htmlFor={amountInputId} className="block text-xs font-medium text-gray-400 uppercase tracking-wider">
+      <div className="bg-obsidian-950/70 border border-obsidian-700/80 rounded-xl p-6 text-center space-y-5">
+        <label htmlFor={amountInputId} className="block caption-3 text-platinum-400">
           Montant du virement
         </label>
 
-        <div className="relative inline-flex items-center justify-center">
+        <div className="relative inline-flex items-center justify-center max-w-full">
           <input
             id={amountInputId}
             type="text"
@@ -112,57 +112,57 @@ export const StepAmount: React.FC = () => {
             placeholder="0,00"
             value={inputValue}
             onChange={(e) => handleInputChange(e.target.value)}
-            className="w-full max-w-[280px] bg-transparent text-center text-4xl sm:text-5xl font-extrabold font-mono text-white tracking-tight focus:outline-none placeholder-gray-600"
+            className="w-56 sm:w-72 bg-transparent text-center heading-3 sm:heading-2 font-mono tabular-nums text-platinum-50 focus:outline-none placeholder-platinum-500"
             autoFocus
           />
-          <span className="text-2xl sm:text-3xl font-bold text-[var(--color-gold)] ml-2">€</span>
+          <span className="heading-4 text-gold-400 ml-2">€</span>
         </div>
 
         {/* Quick add chips */}
-        <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={() => handleAddPreset(5000)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0B101E] border border-white/10 text-gray-300 hover:border-[var(--color-gold)]/50 hover:text-white transition-all"
+            className="px-3 py-1.5 rounded-lg caption-4 bg-obsidian-900 border border-obsidian-700 text-platinum-200 hover:border-gold-400/50 hover:text-platinum-50 transition-colors duration-300 active:scale-[0.98] cursor-pointer"
           >
             +50 €
           </button>
           <button
             type="button"
             onClick={() => handleAddPreset(10000)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0B101E] border border-white/10 text-gray-300 hover:border-[var(--color-gold)]/50 hover:text-white transition-all"
+            className="px-3 py-1.5 rounded-lg caption-4 bg-obsidian-900 border border-obsidian-700 text-platinum-200 hover:border-gold-400/50 hover:text-platinum-50 transition-colors duration-300 active:scale-[0.98] cursor-pointer"
           >
             +100 €
           </button>
           <button
             type="button"
             onClick={() => handleAddPreset(25000)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#0B101E] border border-white/10 text-gray-300 hover:border-[var(--color-gold)]/50 hover:text-white transition-all"
+            className="px-3 py-1.5 rounded-lg caption-4 bg-obsidian-900 border border-obsidian-700 text-platinum-200 hover:border-gold-400/50 hover:text-platinum-50 transition-colors duration-300 active:scale-[0.98] cursor-pointer"
           >
             +250 €
           </button>
           <button
             type="button"
             onClick={handleSetMax}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-gold)]/10 border border-[var(--color-gold)]/30 text-[var(--color-gold)] hover:bg-[var(--color-gold)]/20 transition-all"
+            className="px-3 py-1.5 rounded-lg caption-3 bg-gold-400/10 border border-gold-400/35 text-gold-400 hover:bg-gold-400/20 transition-colors duration-300 active:scale-[0.98] cursor-pointer"
           >
-            Solde Max
+            Solde max
           </button>
         </div>
 
         {/* Balance metrics */}
-        <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5 text-left">
-          <div className="p-3 bg-[#0B101E] rounded-xl border border-white/5">
-            <span className="text-[11px] text-gray-400 block">Solde disponible</span>
-            <span className="text-xs font-mono font-semibold text-white">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-obsidian-700/60 text-left">
+          <div className="p-3 bg-obsidian-900 rounded-lg border border-obsidian-700/70">
+            <span className="caption-5 text-platinum-400 block">Solde disponible</span>
+            <span className="caption-3 font-mono tabular-nums text-platinum-50 mt-0.5 block">
               {formatMinorToCurrency(CURRENT_BALANCE_MINOR)}
             </span>
           </div>
-          <div className="p-3 bg-[#0B101E] rounded-xl border border-white/5">
-            <span className="text-[11px] text-gray-400 block">Solde après opération</span>
+          <div className="p-3 bg-obsidian-900 rounded-lg border border-obsidian-700/70">
+            <span className="caption-5 text-platinum-400 block">Solde après opération</span>
             <span
-              className={`text-xs font-mono font-semibold ${
-                isOverBalance ? 'text-[var(--color-crimson)]' : 'text-[var(--color-emerald)]'
+              className={`caption-3 font-mono tabular-nums mt-0.5 block ${
+                isOverBalance ? 'text-crimson-500' : 'text-emerald-500'
               }`}
             >
               {formatMinorToCurrency(projectedBalanceMinor)}
@@ -174,10 +174,10 @@ export const StepAmount: React.FC = () => {
       {/* Transfer reason (motif) */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label htmlFor={reasonInputId} className="block text-xs font-medium text-gray-300">
+          <label htmlFor={reasonInputId} className="block caption-3 text-platinum-200">
             Motif ou référence du virement (facultatif)
           </label>
-          <span className="text-[11px] text-gray-500 font-mono">
+          <span className="caption-5 text-platinum-500 font-mono tabular-nums">
             {draft.reason.length}/140 car.
           </span>
         </div>
@@ -188,71 +188,75 @@ export const StepAmount: React.FC = () => {
           placeholder="Ex. Loyer Décembre, Facture #4102, Remboursement restaurant"
           value={draft.reason}
           onChange={(e) => setReason(e.target.value)}
-          className="w-full bg-[#070A12] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--color-gold)] transition-colors"
+          className="w-full h-10 bg-obsidian-950 border border-obsidian-700 rounded-lg px-3.5 body-6 text-platinum-50 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400 transition-colors"
         />
       </div>
 
       {/* Execution mode: Instant SEPA */}
-      <div
+      <button
+        type="button"
         onClick={() => setInstant(!draft.instant)}
-        className="p-4 bg-[#070A12] border border-[var(--color-gold)]/30 rounded-xl flex items-center justify-between cursor-pointer hover:border-[var(--color-gold)]/60 transition-colors"
+        aria-pressed={draft.instant}
+        className="w-full text-left p-4 bg-obsidian-950/70 border border-gold-400/30 rounded-xl flex items-center justify-between gap-4 cursor-pointer hover:border-gold-400/60 transition-colors duration-300"
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[var(--color-gold)]/10 text-[var(--color-gold)] flex items-center justify-center">
-            <Zap className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-lg bg-gold-400/10 text-gold-400 flex items-center justify-center shrink-0">
+            <Lightning className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs font-semibold text-white flex items-center gap-2">
-              <span>Virement Instantané SEPA (10 secondes)</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--color-emerald)]/10 text-[var(--color-emerald)] font-bold">
-                0,00 € GRATUIT
+            <div className="caption-3 text-platinum-50 flex flex-wrap items-center gap-2">
+              <span>Virement instantané SEPA (10 secondes)</span>
+              <span className="px-2 py-0.5 rounded-md text-xs bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/25">
+                0,00 € inclus
               </span>
             </div>
-            <div className="text-[11px] text-gray-400 mt-0.5">
-              Règlement immédiat 24h/24 et 7j/7 avec confirmation de compensation TIPS.
+            <div className="caption-5 text-platinum-400 mt-0.5">
+              Règlement immédiat 24h/24 avec confirmation de compensation TIPS.
             </div>
           </div>
         </div>
 
         <div
-          className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+          className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
             draft.instant
-              ? 'bg-[var(--color-gold)] border-[var(--color-gold)] text-[#070A12]'
-              : 'border-white/20'
+              ? 'bg-gold-400 border-gold-400 text-obsidian-950'
+              : 'border-obsidian-600'
           }`}
         >
-          {draft.instant && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+          {draft.instant && <Check className="w-3.5 h-3.5" weight="bold" />}
         </div>
-      </div>
+      </button>
 
       {/* Error display */}
       {error && (
-        <div className="p-3 bg-[var(--color-crimson)]/10 border border-[var(--color-crimson)]/30 rounded-xl flex items-center gap-2 text-xs text-[var(--color-crimson)]">
-          <ShieldAlert className="w-4 h-4 shrink-0" />
+        <div className="p-3 bg-crimson-500/10 border border-crimson-500/30 rounded-lg flex items-center gap-2 caption-4 text-crimson-500">
+          <ShieldWarning className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Action buttons */}
-      <div className="flex items-center justify-between pt-2">
-        <button
+      <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => setStep('beneficiary')}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium text-gray-400 hover:text-white transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 shrink-0" />
           <span>Retour aux bénéficiaires</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="md"
           onClick={handleNext}
           disabled={currentAmountMinor <= 0 || isOverBalance || isOverDailyLimit}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[#070A12] shadow-lg shadow-[var(--color-gold)]/20 hover:opacity-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <span>Vérifier le récapitulatif</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+          <ArrowRight className="w-4 h-4 shrink-0" />
+        </Button>
       </div>
     </div>
   );

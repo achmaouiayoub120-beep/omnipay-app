@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { Input } from './Input';
-import { Search, Lock } from 'lucide-react';
+import { MagnifyingGlass, Lock } from '@phosphor-icons/react';
 
 const meta: Meta<typeof Input> = {
   title: 'Design System/Atomic/Input',
@@ -26,7 +26,7 @@ export const WithLeftIcon: Story = {
   args: {
     label: 'Rechercher une transaction',
     placeholder: 'Motif, destinataire ou montant...',
-    leftIcon: <Search className="h-4 w-4" />,
+    leftIcon: <MagnifyingGlass className="h-4 w-4" />,
   },
 };
 

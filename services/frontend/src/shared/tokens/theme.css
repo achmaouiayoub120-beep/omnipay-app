@@ -3,71 +3,163 @@
 @tailwind utilities;
 
 /* ==========================================================================
-   OmniPay Zero-Trust — Variables CSS Globales & Thèmes (Dark & Light)
+   OmniPay Zero-Trust — Design System Dual-Mode (Obsidian Dark / Porcelain Light)
    ========================================================================== */
 
 :root {
-  /* Mode Sombre (Par Défaut) */
+  /* Couche 1 : Variables RGB Tailwind pour bascule Dark / Light instantanée */
+  --tw-obsidian-950: 7 10 18;      /* #070A12 Canvas */
+  --tw-obsidian-900: 11 16 30;     /* #0B101E Surfaces primaires */
+  --tw-obsidian-850: 14 20 36;     /* #0E1424 Cartes */
+  --tw-obsidian-800: 19 26 46;     /* #131A2E Surfaces élevées */
+  --tw-obsidian-780: 26 34 53;     /* #1A2235 Surfaces secondaires */
+  --tw-obsidian-750: 24 33 58;     /* #18213A Hover */
+  --tw-obsidian-700: 30 41 71;     /* #1E2947 Bordures subtiles */
+  --tw-obsidian-600: 42 57 94;     /* #2A395E Bordures interactives */
+  --tw-obsidian-500: 61 80 127;    /* #3D507F Bordures actives */
+
+  --tw-gold-50: 250 246 238;
+  --tw-gold-100: 245 236 220;
+  --tw-gold-200: 235 215 182;
+  --tw-gold-300: 222 192 140;      /* #DEC08C */
+  --tw-gold-400: 212 162 76;       /* #D4A24C Accent Champagne */
+  --tw-gold-500: 196 144 56;
+  --tw-gold-600: 164 116 43;
+  --tw-gold-700: 128 87 35;
+  --tw-gold-800: 100 66 32;
+  --tw-gold-900: 77 50 29;
+
+  --tw-platinum-50: 245 245 245;   /* #F5F5F5 Texte principal */
+  --tw-platinum-100: 241 245 249;
+  --tw-platinum-200: 226 232 240;
+  --tw-platinum-400: 156 163 175;  /* #9CA3AF Texte secondaire */
+  --tw-platinum-500: 107 114 128;  /* #6B7280 Métadonnées */
+
+  --tw-emerald-500: 25 195 125;    /* #19C37D */
+  --tw-emerald-600: 20 166 105;
+  --tw-emerald-900: 6 58 35;
+
+  --tw-crimson-500: 229 72 77;     /* #E5484D */
+  --tw-crimson-600: 206 44 49;
+  --tw-crimson-900: 74 17 19;
+
+  --tw-amber-500: 245 165 36;      /* #F5A524 */
+  --tw-amber-600: 217 119 6;
+  --tw-amber-900: 74 43 4;
+
+  /* Couche 2 : Sémantique CSS */
   --color-canvas: #070A12;
   --color-surface-panel: #0B101E;
-  --color-surface-card: #0E1424;
+  --color-surface-card: #131A2E;
+  --color-surface-secondary: #1A2235;
   --color-surface-hover: #18213A;
-  
+
   --color-border-subtle: #1E2947;
   --color-border-interactive: #2A395E;
   --color-border-focus: #D4A24C;
 
+  --color-gold: #D4A24C;
+  --color-gold-light: #DEC08C;
   --color-gold-accent: #D4A24C;
   --color-gold-hover: #C49038;
-  --color-gold-subtle: rgba(212, 162, 76, 0.15);
+  --color-gold-subtle: rgba(212, 162, 76, 0.14);
 
-  --color-text-primary: #F8FAFC;
-  --color-text-secondary: #CBD5E1;
-  --color-text-muted: #94A3B8;
-  --color-text-disabled: #475569;
+  --color-text-primary: #F5F5F5;
+  --color-text-secondary: #9CA3AF;
+  --color-text-muted: #6B7280;
+  --color-text-disabled: #4B5563;
 
+  --color-emerald: #19C37D;
   --color-emerald-success: #19C37D;
+  --color-crimson: #E5484D;
   --color-crimson-danger: #E5484D;
+  --color-amber: #F5A524;
   --color-amber-warning: #F5A524;
 
-  --shadow-elevation-1: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
-  --shadow-elevation-2: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-  --shadow-elevation-3: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
-  --shadow-gold-glow: 0 0 24px -4px rgba(212, 162, 76, 0.35);
+  --shadow-elevation-1: 0 1px 3px 0 rgba(4, 6, 12, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  --shadow-elevation-2: 0 6px 16px -4px rgba(4, 6, 12, 0.55), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  --shadow-elevation-3: 0 16px 36px -8px rgba(4, 6, 12, 0.72), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --shadow-gold-glow: 0 0 20px -6px rgba(212, 162, 76, 0.28);
 
-  --topbar-height: 72px;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --topbar-height: 76px;
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+  --font-sans: 'Geist Variable', Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
 [data-theme="light"] {
-  /* Mode Clair (Contraste AA Garanti) */
-  --color-canvas: #F8FAFC;
+  /* Mode Clair Architectural : Albâtre Chaud (#F6F5F0) · Porcelaine (#FFFFFF) · Bronze Champagne (#8E651B) */
+  --tw-obsidian-950: 246 245 240;  /* #F6F5F0 Fond albâtre chaleureux */
+  --tw-obsidian-900: 255 255 255;  /* #FFFFFF Surfaces porcelaine pures */
+  --tw-obsidian-850: 250 249 245;  /* #FAF9F5 Cartes subtiles */
+  --tw-obsidian-800: 239 236 228;  /* #EFECE4 Surfaces secondaires pierre */
+  --tw-obsidian-780: 235 232 223;  /* #EBE8DF Hover / Secondaire */
+  --tw-obsidian-750: 231 227 216;  /* #E7E3D8 Hover accentué */
+  --tw-obsidian-700: 224 220 210;  /* #E0DCD2 Filets & bordures fines */
+  --tw-obsidian-600: 201 196 184;  /* #C9C4B8 Bordures interactives */
+  --tw-obsidian-500: 168 162 148;  /* #A8A294 Bordures actives */
+
+  --tw-gold-50: 253 250 243;
+  --tw-gold-100: 247 240 222;
+  --tw-gold-200: 230 208 164;
+  --tw-gold-300: 174 128 45;       /* #AE802D Bronze clair hover */
+  --tw-gold-400: 142 101 27;       /* #8E651B Bronze Champagne AA (contraste > 4.8:1) */
+  --tw-gold-500: 120 84 20;
+  --tw-gold-600: 98 68 15;
+  --tw-gold-700: 78 53 11;
+  --tw-gold-800: 58 39 8;
+  --tw-gold-900: 41 27 5;
+
+  --tw-platinum-50: 17 19 24;      /* #111318 Encre Obsidienne */
+  --tw-platinum-100: 26 29 36;     /* #1A1D24 */
+  --tw-platinum-200: 45 49 59;     /* #2D313B Texte secondaire foncé */
+  --tw-platinum-400: 88 94 108;    /* #585E6C Labels & texte atténué AA */
+  --tw-platinum-500: 108 114 128;  /* #6C7280 Métadonnées */
+
+  --tw-emerald-500: 13 138 90;     /* #0D8A5A Émeraude lisible sur clair */
+  --tw-emerald-600: 10 112 73;
+  --tw-emerald-900: 224 247 237;
+
+  --tw-crimson-500: 196 34 44;     /* #C4222C Crimson AA */
+  --tw-crimson-600: 168 25 34;
+  --tw-crimson-900: 253 236 238;
+
+  --tw-amber-500: 180 95 10;       /* #B45F0A Ambre soutenu AA */
+  --tw-amber-600: 148 76 6;
+  --tw-amber-900: 254 245 231;
+
+  --color-canvas: #F6F5F0;
   --color-surface-panel: #FFFFFF;
   --color-surface-card: #FFFFFF;
-  --color-surface-hover: #F1F5F9;
+  --color-surface-secondary: #EFECE4;
+  --color-surface-hover: #E7E3D8;
 
-  --color-border-subtle: #E2E8F0;
-  --color-border-interactive: #CBD5E1;
-  --color-border-focus: #BA8735;
+  --color-border-subtle: #E0DCD2;
+  --color-border-interactive: #C9C4B8;
+  --color-border-focus: #8E651B;
 
-  --color-gold-accent: #BA8735;
-  --color-gold-hover: #94652A;
-  --color-gold-subtle: rgba(186, 135, 53, 0.15);
+  --color-gold: #8E651B;
+  --color-gold-light: #AE802D;
+  --color-gold-accent: #8E651B;
+  --color-gold-hover: #785414;
+  --color-gold-subtle: rgba(142, 101, 27, 0.12);
 
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #334155;
-  --color-text-muted: #64748B;
-  --color-text-disabled: #94A3B8;
+  --color-text-primary: #111318;
+  --color-text-secondary: #585E6C;
+  --color-text-muted: #6C7280;
+  --color-text-disabled: #9CA3AF;
 
-  --color-emerald-success: #0E9F6E;
-  --color-crimson-danger: #D61F26;
-  --color-amber-warning: #C05621;
+  --color-emerald: #0D8A5A;
+  --color-emerald-success: #0D8A5A;
+  --color-crimson: #C4222C;
+  --color-crimson-danger: #C4222C;
+  --color-amber: #B45F0A;
+  --color-amber-warning: #B45F0A;
 
-  --shadow-elevation-1: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  --shadow-elevation-2: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-elevation-3: 0 10px 15px -3px rgba(0, 0, 0, 0.12);
-  --shadow-gold-glow: 0 0 20px -2px rgba(186, 135, 53, 0.25);
+  --shadow-elevation-1: 0 1px 2px 0 rgba(17, 19, 24, 0.04), 0 4px 12px -4px rgba(17, 19, 24, 0.05);
+  --shadow-elevation-2: 0 4px 14px -2px rgba(17, 19, 24, 0.07), 0 1px 3px 0 rgba(17, 19, 24, 0.04);
+  --shadow-elevation-3: 0 16px 36px -8px rgba(17, 19, 24, 0.12), 0 2px 6px 0 rgba(17, 19, 24, 0.04);
+  --shadow-gold-glow: 0 0 16px -4px rgba(142, 101, 27, 0.2);
 }
 
 /* ==========================================================================
@@ -80,24 +172,156 @@
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   background-color: var(--color-canvas);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  min-height: 100vh;
+  min-height: 100dvh;
   text-rendering: optimizeLegibility;
+  transition: background-color 300ms var(--ease-editorial), color 300ms var(--ease-editorial);
 }
 
-/* Chiffres avec chasse fixe pour alignement des montants financiers */
+/* Grain discret pour casser la platitude sans dégradé décoratif */
+.surface-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+}
+
+/* Chiffres tabulaires pour alignement des montants et télémétries */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
 }
 
+/* Dégradé typographique exclusif aux titres principaux (B5) */
+.hero-text-gradient {
+  background: linear-gradient(90deg, #ffffff 0%, #9b9b9b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme="light"] .hero-text-gradient {
+  background: linear-gradient(90deg, #111318 0%, #585E6C 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Styles typographiques nommés (landing-page-design B1) */
+@layer components {
+  .heading-1 {
+    @apply text-6xl font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+  .heading-2 {
+    @apply text-5xl font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+  .heading-3 {
+    @apply text-4xl font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+  .heading-4 {
+    @apply text-3xl font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+  .heading-5 {
+    @apply text-2xl font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+  .heading-6 {
+    @apply text-xl font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+
+  .title-1 {
+    @apply text-xl font-medium tracking-tight;
+    text-wrap: balance;
+  }
+  .title-2 {
+    @apply text-lg font-medium tracking-tight;
+    text-wrap: balance;
+  }
+  .title-3 {
+    @apply text-base font-medium;
+    text-wrap: balance;
+  }
+  .title-4 {
+    @apply text-sm font-medium;
+    text-wrap: balance;
+  }
+  .title-5 {
+    @apply text-xs font-medium tracking-wide;
+  }
+
+  .body-1 {
+    @apply text-base font-semibold;
+    text-wrap: pretty;
+  }
+  .body-2 {
+    @apply text-base font-medium;
+    text-wrap: pretty;
+  }
+  .body-3 {
+    @apply text-base font-normal;
+    text-wrap: pretty;
+  }
+  .body-4 {
+    @apply text-sm font-semibold;
+    text-wrap: pretty;
+  }
+  .body-5 {
+    @apply text-sm font-medium;
+    text-wrap: pretty;
+  }
+  .body-6 {
+    @apply text-sm font-normal;
+    text-wrap: pretty;
+  }
+
+  .button-lg {
+    @apply text-lg font-semibold;
+  }
+  .button-md {
+    @apply text-base font-semibold;
+  }
+  .button-sm {
+    @apply text-sm font-semibold;
+  }
+  .button-xsm {
+    @apply text-xs font-semibold;
+  }
+
+  .caption-1 {
+    @apply text-sm font-medium;
+    text-wrap: pretty;
+  }
+  .caption-2 {
+    @apply text-sm font-normal;
+    text-wrap: pretty;
+  }
+  .caption-3 {
+    @apply text-xs font-semibold;
+  }
+  .caption-4 {
+    @apply text-xs font-medium;
+  }
+  .caption-5 {
+    @apply text-xs font-normal;
+  }
+}
+
 /* Respect de la réduction des mouvements */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -109,7 +333,7 @@ html, body {
 /* Masquage de confidentialité lors de la perte de focus d'onglet */
 .confidentiality-blur {
   filter: blur(8px);
-  transition: filter 0.2s ease;
+  transition: filter 300ms var(--ease-editorial);
   pointer-events: none;
   user-select: none;
 }

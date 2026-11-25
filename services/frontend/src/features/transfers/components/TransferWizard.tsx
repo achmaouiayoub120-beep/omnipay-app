@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Coins, FileCheck, Lock, CheckCircle2 } from 'lucide-react';
+import { Users, Coins, FileText, Lock, CheckCircle } from '@phosphor-icons/react';
 import { useTransferStore } from '../transfers.store';
 import { StepBeneficiary } from './StepBeneficiary';
 import { StepAmount } from './StepAmount';
@@ -7,13 +7,14 @@ import { StepReview } from './StepReview';
 import { StepMfa } from './StepMfa';
 import { StepSuccess } from './StepSuccess';
 import { TransferStep } from '../transfers.types';
+import { Card } from '@/shared/ui';
 
 const STEPS: { key: TransferStep; label: string; icon: React.ElementType }[] = [
   { key: 'beneficiary', label: 'Bénéficiaire', icon: Users },
   { key: 'amount', label: 'Montant', icon: Coins },
-  { key: 'review', label: 'Récapitulatif', icon: FileCheck },
+  { key: 'review', label: 'Récapitulatif', icon: FileText },
   { key: 'mfa', label: 'Sécurité MFA', icon: Lock },
-  { key: 'success', label: 'Confirmation', icon: CheckCircle2 },
+  { key: 'success', label: 'Confirmation', icon: CheckCircle },
 ];
 
 interface TransferWizardProps {
@@ -26,22 +27,19 @@ export const TransferWizard: React.FC<TransferWizardProps> = ({ onGoToHistory })
   const currentStepIndex = STEPS.findIndex((s) => s.key === currentStep);
 
   return (
-    <div className="bg-[#0B101E] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-      {/* Decorative subtle ambient gold aura */}
-      <div className="absolute top-0 right-1/4 w-72 h-72 bg-[var(--color-gold)]/5 rounded-full blur-3xl pointer-events-none" />
-
+    <Card className="p-6 sm:p-8 shadow-elevation-2">
       {/* Stepper Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+      <div className="mb-8 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
+            <h2 className="heading-6 text-platinum-50">
               Assistant de Virement SEPA
             </h2>
-            <p className="text-xs text-gray-400 mt-1">
-              Transfert instantané de fonds avec garantie d'idempotence et validation Modulo-97.
+            <p className="caption-2 text-platinum-400 mt-1">
+              Transfert instantané avec garantie d’idempotence et validation Modulo 97.
             </p>
           </div>
-          <span className="text-xs font-mono font-medium text-[var(--color-gold)] bg-[var(--color-gold)]/10 px-3 py-1 rounded-full border border-[var(--color-gold)]/20">
+          <span className="self-start sm:self-auto caption-3 font-mono tabular-nums text-gold-400 bg-gold-400/10 px-3 py-1 rounded-md border border-gold-400/25">
             Étape {currentStepIndex + 1} / {STEPS.length}
           </span>
         </div>
@@ -54,33 +52,33 @@ export const TransferWizard: React.FC<TransferWizardProps> = ({ onGoToHistory })
             const isCurrent = idx === currentStepIndex;
 
             return (
-              <div key={step.key} className="flex flex-col items-center text-center">
+              <div key={step.key} className="flex flex-col items-start text-left">
                 <div
-                  className={`w-full h-1.5 rounded-full mb-2 transition-all duration-300 ${
+                  className={`w-full h-1.5 rounded-full mb-2 transition-colors duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isCompleted
-                      ? 'bg-[var(--color-emerald)]'
+                      ? 'bg-emerald-500'
                       : isCurrent
-                      ? 'bg-[var(--color-gold)] shadow-sm shadow-[var(--color-gold)]/40'
-                      : 'bg-white/10'
+                      ? 'bg-gold-400'
+                      : 'bg-obsidian-800'
                   }`}
                 />
-                <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium">
+                <div className="hidden sm:flex items-center gap-1.5 caption-4">
                   <Icon
-                    className={`w-3.5 h-3.5 ${
+                    className={`w-3.5 h-3.5 shrink-0 ${
                       isCompleted
-                        ? 'text-[var(--color-emerald)]'
+                        ? 'text-emerald-500'
                         : isCurrent
-                        ? 'text-[var(--color-gold)]'
-                        : 'text-gray-500'
+                        ? 'text-gold-400'
+                        : 'text-platinum-500'
                     }`}
                   />
                   <span
                     className={
                       isCompleted
-                        ? 'text-gray-300'
+                        ? 'text-platinum-200'
                         : isCurrent
-                        ? 'text-white font-semibold'
-                        : 'text-gray-500'
+                        ? 'text-platinum-50 font-semibold'
+                        : 'text-platinum-500'
                     }
                   >
                     {step.label}
@@ -93,13 +91,13 @@ export const TransferWizard: React.FC<TransferWizardProps> = ({ onGoToHistory })
       </div>
 
       {/* Dynamic Step Body */}
-      <div className="relative z-10">
+      <div>
         {currentStep === 'beneficiary' && <StepBeneficiary />}
         {currentStep === 'amount' && <StepAmount />}
         {currentStep === 'review' && <StepReview />}
         {currentStep === 'mfa' && <StepMfa />}
         {currentStep === 'success' && <StepSuccess onGoToHistory={onGoToHistory} />}
       </div>
-    </div>
+    </Card>
   );
 };

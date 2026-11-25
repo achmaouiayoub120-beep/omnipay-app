@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { Button } from './Button';
-import { ArrowRight, Shield } from 'lucide-react';
+import { ArrowRight, ShieldCheck } from '@phosphor-icons/react';
 
 const meta: Meta<typeof Button> = {
   title: 'Design System/Atomic/Button',
@@ -77,7 +77,7 @@ export const DisabledState: Story = {
 export const WithIcons: Story = {
   render: (args) => (
     <Button {...args}>
-      <Shield className="h-4 w-4" />
+      <ShieldCheck className="h-4 w-4" />
       <span>Validation Zero-Trust</span>
       <ArrowRight className="h-4 w-4" />
     </Button>
