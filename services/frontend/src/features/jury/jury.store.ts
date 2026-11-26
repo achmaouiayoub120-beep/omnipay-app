@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { DevSecOpsMetrics, JuryScenario } from './jury.types';
 import { toast } from '../../shared/ui/toast/toast.store';
+import { uuid } from '../../shared/lib/uuid';
 
 const INITIAL_METRICS: DevSecOpsMetrics = {
   jenkins: {
@@ -297,7 +298,7 @@ export const useJuryStore = create<JuryState>((set, get) => ({
               ...s,
               status: 'SUCCESS',
               executionTime: new Date().toLocaleTimeString('fr-FR'),
-              traceId: `trace-${crypto.randomUUID().slice(0, 12)}`,
+              traceId: `trace-${uuid().slice(0, 12)}`,
             }
           : s
       ),

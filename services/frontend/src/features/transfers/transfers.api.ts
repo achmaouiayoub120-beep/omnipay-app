@@ -8,14 +8,12 @@
  */
 
 import { useAuthStore } from '../auth/auth.store';
+import { API_BASE_URL } from '../../shared/lib/api';
 import {
   BackendTransferRequest,
   BackendTransferResponse,
 } from './transfers.types';
 
-const API_BASE_URL =
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ||
-  'http://localhost:8082';
 
 /** Statut renvoyé par le serveur quand la clé d'idempotence a déjà été traitée (réponse d'origine rejouée). */
 export const IDEMPOTENT_REPLAY_STATUS = 'IDEMPOTENT_REPLAY';
