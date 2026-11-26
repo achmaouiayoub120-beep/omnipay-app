@@ -164,6 +164,8 @@
   - Tentative de déploiement d'une image publique non signée ou non approuvée.
   - Rejet immédiat par le Webhook d'admission Kyverno avec log explicite.
   - Déploiement de l'image officielle OmniPay signée ➔ Validation instantanée.
+- **Capture HD du Dashboard :**
+  ![Zero-Trust Security & Compliance](../assets/dashboards/dashboard-zero-trust-security.png)
 - **Lien :** `demos/demo-2-kyverno-signature-gate.md`
 
 #### Slide 16 : [LIVE DÉMO 1] — Déploiement Canary & Rollback Automatique
@@ -184,6 +186,8 @@
   - **Logs :** Loki & Promtail (Centralisation et indexation des logs applicatifs).
   - **Traces :** Grafana Tempo & OpenTelemetry (Tracing distribué bout en bout).
   - **Visualisation :** Dashboards Grafana as Code provisionnés automatiquement.
+- **Capture HD du Dashboard :**
+  ![Golden Signals RED](../assets/dashboards/dashboard-golden-signals.png)
 
 #### Slide 18 : Tracing Distribué de Bout en Bout
 - **Corrélation d'une Transaction Bancaire :**
@@ -200,10 +204,12 @@
 
 #### Slide 20 : Performance Opérationnelle — Dashboard DORA Metrics
 - **Mesure des 4 Métriques DORA :**
-  - **Deployment Frequency :** Multiples déploiements par jour en dev/recette.
-  - **Lead Time for Changes :** < 15 minutes du commit à la production.
-  - **Change Failure Rate :** < 5% grâce aux Quality Gates et tests automatisés.
-  - **Time to Restore Service (MTTR) :** < 30 secondes grâce au Rollback automatique Canary.
+  - **Deployment Frequency :** Multiples déploiements par jour en dev/recette (> 5/jour).
+  - **Lead Time for Changes :** < 15 minutes du commit à la production (9.4 min).
+  - **Change Failure Rate :** < 5% grâce aux Quality Gates et tests automatisés (2.2%).
+  - **Time to Restore Service (MTTR) :** < 30 secondes grâce au Rollback automatique Canary (22.5s).
+- **Capture HD du Dashboard :**
+  ![DORA Metrics Executive Dashboard](../assets/dashboards/dashboard-dora-metrics.png)
 
 ---
 
