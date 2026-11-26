@@ -41,16 +41,31 @@ for svc in "${SERVICES[@]}"; do
             }
         echo "       SBOM généré : ${SBOM_FILE}"
     elif command -v docker >/dev/null 2>&1; then
-        docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$(pwd)/${SBOM_DIR}:/sbom" \
-            anchore/syft:latest packages "docker:${IMAGE}" \
-            -o spdx-json \
-            --file "/sbom/${svc}-service-sbom.spdx.json" 2>&1 || {
-                echo "[WARN] Syft (Docker) a rencontré une erreur pour ${svc}-service."
-                EXIT_CODE=1
-                continue
-            }
+        CONTAINER_REF="${CONTAINER_NAME:-omnipay-jenkins}"
+        TARGET_FULL="$(cd "${SBOM_DIR}" && pwd)"
+        if [ -f /.dockerenv ] || [ -d /var/jenkins_home ]; then
+            docker run --rm \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                --volumes-from "${CONTAINER_REF}" \
+                anchore/syft:latest packages "docker:${IMAGE}" \
+                -o spdx-json \
+                --file "${TARGET_FULL}/${svc}-service-sbom.spdx.json" 2>&1 || {
+                    echo "[WARN] Syft (Docker) a rencontré une erreur pour ${svc}-service."
+                    EXIT_CODE=1
+                    continue
+                }
+        else
+            docker run --rm \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                -v "$(pwd)/${SBOM_DIR}:/sbom" \
+                anchore/syft:latest packages "docker:${IMAGE}" \
+                -o spdx-json \
+                --file "/sbom/${svc}-service-sbom.spdx.json" 2>&1 || {
+                    echo "[WARN] Syft (Docker) a rencontré une erreur pour ${svc}-service."
+                    EXIT_CODE=1
+                    continue
+                }
+        fi
         echo "       SBOM généré : ${SBOM_FILE}"
     else
         echo "[WARN] Syft non disponible — SBOM non généré pour ${svc}-service."

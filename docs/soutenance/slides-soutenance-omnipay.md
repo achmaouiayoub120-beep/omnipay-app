@@ -219,7 +219,7 @@
 - 2 dépôts Git interconnectés en GitFlow / GitOps.
 - 11 stages de CI/CD DevSecOps avec tolérance zéro sur les vulnérabilités critiques.
 - 5 démonstrations techniques reproductibles et automatisées.
-- 14 Architecture Decision Records (ADRs) documentant chaque choix technique.
+- 15 Architecture Decision Records (ADRs) documentant chaque choix technique.
 
 #### Slide 23 : Perspectives & Améliorations Futures
 - Passage à un cluster Kubernetes multi-régions (Active-Active).

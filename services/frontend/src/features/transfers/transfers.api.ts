@@ -15,7 +15,7 @@ import {
 
 const API_BASE_URL =
   (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ||
-  'http://localhost:8082';
+  (typeof window !== 'undefined' && window.location?.origin ? '' : 'http://localhost:8082');
 
 /** Statut renvoyé par le serveur quand la clé d'idempotence a déjà été traitée (réponse d'origine rejouée). */
 export const IDEMPOTENT_REPLAY_STATUS = 'IDEMPOTENT_REPLAY';
