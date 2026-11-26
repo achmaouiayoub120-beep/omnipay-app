@@ -253,6 +253,75 @@ function Install-FrontendDependencies {
     }
 }
 
+$script:Ports = @{
+    Postgres     = 5432
+    Auth         = 8081
+    Transaction  = 8082
+    Notification = 8083
+    Frontend     = 8080
+    Jenkins      = 8088
+}
+
+function Test-PortInUse {
+    param([int]$Port)
+    $listeners = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+    return ($listeners | Where-Object { $_.Port -eq $Port } | Measure-Object).Count -gt 0
+}
+
+function Get-OmnipayContainerHostPort {
+    param([string]$ContainerName, [int]$ContainerPort)
+    $prevPref = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $running = & docker ps --filter "name=^${ContainerName}$" --filter "status=running" --format "{{.Names}}" 2>$null
+        if ($running -eq $ContainerName) {
+            $mapped = & docker port $ContainerName "$ContainerPort/tcp" 2>$null | Select-Object -First 1
+            if ($mapped -match ':(\d+)$') {
+                return [int]$Matches[1]
+            }
+        }
+    } catch {} finally {
+        $ErrorActionPreference = $prevPref
+    }
+    return $null
+}
+
+function Resolve-ServiceHostPorts {
+    Write-Host "`n[PORTS] Vérification de la disponibilité des ports hôtes..." -ForegroundColor Yellow
+    $defs = @(
+        @{ Key = "Postgres";     Container = "omnipay-postgres";     Internal = 5432; Default = 5432; FallbackStart = 5433; EnvVar = "POSTGRES_PORT";     Label = "PostgreSQL 16" },
+        @{ Key = "Auth";         Container = "omnipay-auth";         Internal = 8081; Default = 8081; FallbackStart = 8091; EnvVar = "AUTH_PORT";         Label = "Auth Service" },
+        @{ Key = "Transaction";  Container = "omnipay-transaction";  Internal = 8082; Default = 8082; FallbackStart = 8092; EnvVar = "TRANSACTION_PORT";  Label = "Transaction Service" },
+        @{ Key = "Notification"; Container = "omnipay-notification"; Internal = 8083; Default = 8083; FallbackStart = 8093; EnvVar = "NOTIFICATION_PORT"; Label = "Notification Service" },
+        @{ Key = "Frontend";     Container = "omnipay-frontend";     Internal = 8080; Default = 8080; FallbackStart = 8090; EnvVar = "FRONTEND_PORT";     Label = "Portail Web Frontend" }
+    )
+    if ($WithJenkins) {
+        $defs += @{ Key = "Jenkins"; Container = "omnipay-jenkins"; Internal = 8080; Default = 8088; FallbackStart = 8098; EnvVar = "JENKINS_PORT"; Label = "Jenkins CI/CD" }
+    }
+
+    $reserved = @()
+    foreach ($d in $defs) {
+        $existing = Get-OmnipayContainerHostPort -ContainerName $d.Container -ContainerPort $d.Internal
+        if ($existing) {
+            $chosen = $existing
+            Write-Host "  ✔ $($d.Label) déjà actif sur le port $chosen" -ForegroundColor Green
+        } elseif (-not (Test-PortInUse -Port $d.Default) -and ($reserved -notcontains $d.Default)) {
+            $chosen = $d.Default
+            Write-Host "  ✔ $($d.Label) -> port $chosen disponible" -ForegroundColor Green
+        } else {
+            $candidate = $d.FallbackStart
+            while ((Test-PortInUse -Port $candidate) -or ($reserved -contains $candidate)) {
+                $candidate++
+            }
+            $chosen = $candidate
+            Write-Host "  ⚠ Port $($d.Default) occupé sur Windows -> $($d.Label) basculé automatiquement sur le port $chosen" -ForegroundColor DarkYellow
+        }
+        $reserved += $chosen
+        $script:Ports[$d.Key] = $chosen
+        [Environment]::SetEnvironmentVariable($d.EnvVar, [string]$chosen, "Process")
+    }
+}
+
 function Test-HttpHealth {
     param([string]$Url)
     try {
@@ -267,14 +336,15 @@ function Wait-ForServicesHealth {
     param([int]$TimeoutSeconds)
     Write-Host "`n[HEALTHCHECK] Attente du démarrage des serveurs (timeout ${TimeoutSeconds}s)..." -ForegroundColor Yellow
 
+    $p = $script:Ports
     $targets = @(
-        @{ Name = "Auth Service (:8081)";         Url = "http://localhost:8081/api/auth/health" },
-        @{ Name = "Transaction Service (:8082)";  Url = "http://localhost:8082/api/transactions/health" },
-        @{ Name = "Notification Service (:8083)"; Url = "http://localhost:8083/api/notifications/health" },
-        @{ Name = "Portail Web Frontend (:8080)"; Url = "http://localhost:8080/health" }
+        @{ Name = "Auth Service (:$($p.Auth))";                 Url = "http://localhost:$($p.Auth)/api/auth/health" },
+        @{ Name = "Transaction Service (:$($p.Transaction))";   Url = "http://localhost:$($p.Transaction)/api/transactions/health" },
+        @{ Name = "Notification Service (:$($p.Notification))"; Url = "http://localhost:$($p.Notification)/api/notifications/health" },
+        @{ Name = "Portail Web Frontend (:$($p.Frontend))";     Url = "http://localhost:$($p.Frontend)/health" }
     )
     if ($WithJenkins) {
-        $targets += @{ Name = "Jenkins CI (:8088)"; Url = "http://localhost:8088/login" }
+        $targets += @{ Name = "Jenkins CI (:$($p.Jenkins))"; Url = "http://localhost:$($p.Jenkins)/login" }
     }
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -308,8 +378,16 @@ function Wait-ForServicesHealth {
 }
 
 function Show-SoutenanceSummary {
+    $p = $script:Ports
+    $uFront = ("http://localhost:{0}" -f $p.Frontend).PadRight(39)
+    $uAuth  = ("http://localhost:{0}" -f $p.Auth).PadRight(39)
+    $uTx    = ("http://localhost:{0}" -f $p.Transaction).PadRight(39)
+    $uNotif = ("http://localhost:{0}" -f $p.Notification).PadRight(39)
+    $uPg    = ("localhost:{0}" -f $p.Postgres).PadRight(39)
+    $uJenk  = ("http://localhost:{0}" -f $p.Jenkins).PadRight(39)
+
     $jenkinsRow = if ($WithJenkins) {
-        "`n║ Jenkins CI/CD (JCasC)           ║ http://localhost:8088                   ║ admin / AdminSecureOmniPay2026! ║"
+        "`n║ Jenkins CI/CD (JCasC)           ║ $uJenk ║ admin / AdminSecureOmniPay2026! ║"
     } else { "" }
 
     Write-Host @"
@@ -320,18 +398,19 @@ function Show-SoutenanceSummary {
 ╔═════════════════════════════════╦═════════════════════════════════════════╦═════════════════════════════════╗
 ║ Service                         ║ URL Locale                              ║ Détail / Santé                  ║
 ╠═════════════════════════════════╬═════════════════════════════════════════╬═════════════════════════════════╣
-║ Portail Web Bancaire (UI)       ║ http://localhost:8080                   ║ /health                         ║
-║ Auth Microservice (JWT)         ║ http://localhost:8081                   ║ /api/auth/health                ║
-║ Transaction Microservice        ║ http://localhost:8082                   ║ /api/transactions/health        ║
-║ Notification Microservice       ║ http://localhost:8083                   ║ /api/notifications/health       ║
-║ Base PostgreSQL 16              ║ localhost:5432                          ║ DB omnipay_db                   ║$jenkinsRow
+║ Portail Web Bancaire (UI)       ║ $uFront ║ /health                         ║
+║ Auth Microservice (JWT)         ║ $uAuth ║ /api/auth/health                ║
+║ Transaction Microservice        ║ $uTx ║ /api/transactions/health        ║
+║ Notification Microservice       ║ $uNotif ║ /api/notifications/health       ║
+║ Base PostgreSQL 16              ║ $uPg ║ DB omnipay_db                   ║$jenkinsRow
 ╚═════════════════════════════════╩═════════════════════════════════════════╩═════════════════════════════════╝
 
-Comptes de démonstration soutenance (mot de passe universel : password) :
-  • alice   (ROLE_USER)     — Compte client émetteur
-  • bob     (ROLE_USER)     — Bénéficiaire interne
-  • admin   (ROLE_ADMIN)    — Superviseur + Mode Jury (raccourci Ctrl+Shift+J)
-  • auditor (ROLE_AUDITOR)  — Auditeur conformité en lecture seule
+Comptes de démonstration soutenance :
+  • alice   (ROLE_USER)     — Compte client émetteur (mot de passe : alice-demo-pass)
+  • bob     (ROLE_USER)     — Bénéficiaire interne (mot de passe : bob-demo-pass)
+  • admin   (ROLE_ADMIN)    — Superviseur + Mode Jury (mot de passe : password)
+  • auditor (ROLE_AUDITOR)  — Auditeur conformité (mot de passe : password)
+  • user    (ROLE_USER)     — Compte standard (mot de passe : password)
 
 Raccourcis UI utiles devant le jury :
   • Ctrl+K / ⌘K      : Palette de commande & recherche rapide
@@ -378,6 +457,7 @@ try {
         "start" {
             Ensure-EnvFile
             $runner = Get-ComposeRunner -AutoStartDocker
+            Resolve-ServiceHostPorts
 
             $upArgs = @("up", "-d")
             if (-not $NoBuild) {
@@ -396,7 +476,10 @@ try {
             Show-SoutenanceSummary
 
             if ($OpenBrowser) {
-                Start-Process "http://localhost:8080"
+                Start-Process ("http://localhost:{0}" -f $script:Ports.Frontend)
+                if ($WithJenkins) {
+                    Start-Process ("http://localhost:{0}" -f $script:Ports.Jenkins)
+                }
             }
         }
 

@@ -8,7 +8,7 @@ echo   OMNIPAY ZERO-TRUST — DEMARRAGE AUTOMATIQUE DE TOUS LES SERVEURS
 echo ============================================================================
 echo.
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\soutenance.ps1" -Action start -OpenBrowser
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\soutenance.ps1" -Action start -WithJenkins -OpenBrowser
 set "ERR=%ERRORLEVEL%"
 
 echo.
