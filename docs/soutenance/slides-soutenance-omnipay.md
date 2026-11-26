@@ -186,20 +186,26 @@
   - **Logs :** Loki & Promtail (Centralisation et indexation des logs applicatifs).
   - **Traces :** Grafana Tempo & OpenTelemetry (Tracing distribué bout en bout).
   - **Visualisation :** Dashboards Grafana as Code provisionnés automatiquement.
-- **Capture HD du Dashboard :**
+- **Captures HD des Dashboards :**
   ![Golden Signals RED](../assets/dashboards/dashboard-golden-signals.png)
+  ![JVM Actuator & Micrometer Spring Boot](../assets/dashboards/dashboard-jvm-actuator.png)
 
 #### Slide 18 : Tracing Distribué de Bout en Bout
 - **Corrélation d'une Transaction Bancaire :**
   - Visualisation d'une trace k6 : `Frontend ➔ Auth-Service ➔ Transaction-Service ➔ Notification-Service ➔ PostgreSQL`.
   - Identification immédiate du goulot d'étranglement ou de l'étape défaillante grâce au `trace_id`.
+  - Corrélation instantanée Traces ↔ Logs via le pivot `tracesToLogsV2` Grafana Tempo / Loki.
+- **Capture HD Tracing Tempo & Pivot Logs Loki :**
+  ![Distributed Tracing Tempo & Loki Pivot](../assets/dashboards/tempo-distributed-tracing-loki.png)
 
 #### Slide 19 : [LIVE DÉMO 5] — GameDay Chaos & Notification d'Urgence
 - **Action Démo :**
   - Injection d'un crash de pod et d'une latence artificielle pendant le tir de charge k6.
   - Observation du saut de latence sur le dashboard Golden Signals.
-  - Déclenchement de l'alerte Alertmanager (Burn Rate SLO).
+  - Déclenchement de l'alerte Alertmanager (Burn Rate SLO Multi-Window Multi-Burn-Rate 14.4x).
   - Réception en direct de la notification sur le canal d'équipe (Discord/Telegram).
+- **Capture HD Alerte Critique & Notification Discord Live :**
+  ![Alertmanager & Discord Live Alert](../assets/dashboards/alertmanager-discord-chaos-alert.png)
 - **Lien :** `demos/demo-5-gameday-slo.md`
 
 #### Slide 20 : Performance Opérationnelle — Dashboard DORA Metrics
