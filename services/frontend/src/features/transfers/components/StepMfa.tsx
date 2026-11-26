@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ShieldCheck, Lock, ArrowsClockwise, WarningCircle } from '@phosphor-icons/react';
+import { ArrowLeft, ShieldCheck, Lock, ArrowsClockwise, WarningCircle, CircleNotch } from '@phosphor-icons/react';
 import { useTransferStore } from '../transfers.store';
 import { formatMinorToCurrency } from '../../../shared/lib/money';
 import { Button } from '@/shared/ui';
 
 export const StepMfa: React.FC = () => {
-  const { draft, setStep, submitTransfer, isLoading, errorMessage } = useTransferStore();
+  const { draft, setStep, submitTransfer, isLoading, pendingCount, errorMessage } = useTransferStore();
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState(60);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -51,7 +51,8 @@ export const StepMfa: React.FC = () => {
   const isComplete = code.length === 6;
 
   const handleSubmit = async () => {
-    if (!isComplete || isLoading) return;
+    if (!isComplete) return;
+    // Pas de blocage pendant l'envoi : des clics répétés envoient la MÊME clé d'idempotence et le serveur dédoublonne.
     await submitTransfer();
   };
 
@@ -144,11 +145,14 @@ export const StepMfa: React.FC = () => {
           variant="primary"
           size="md"
           onClick={handleSubmit}
-          isLoading={isLoading}
-          disabled={!isComplete || isLoading}
+          disabled={!isComplete}
+          aria-busy={isLoading}
         >
           {isLoading ? (
-            <span>Compensation en cours...</span>
+            <>
+              <CircleNotch className="h-4 w-4 animate-spin shrink-0" />
+              <span>Compensation en cours… ({pendingCount} requête{pendingCount > 1 ? 's' : ''}, même clé)</span>
+            </>
           ) : (
             <>
               <Lock className="w-4 h-4 shrink-0" />

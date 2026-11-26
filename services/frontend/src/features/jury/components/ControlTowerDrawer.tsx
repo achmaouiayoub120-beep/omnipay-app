@@ -5,6 +5,8 @@ import {
   Gauge,
   Stack,
   Sparkle,
+  BellSlash,
+  BellRinging,
 } from '@phosphor-icons/react';
 import { useJuryStore } from '../jury.store';
 import { DevOpsMetricsGrid } from './DevOpsMetricsGrid';
@@ -19,6 +21,8 @@ export const ControlTowerDrawer: React.FC = () => {
     metrics,
     scenarios,
     isExecuting,
+    notificationOutage,
+    toggleNotificationOutage,
     closeDrawer,
     toggleDrawer,
     executeScenario,
@@ -97,6 +101,40 @@ export const ControlTowerDrawer: React.FC = () => {
 
           {/* Drawer Body Content */}
           <div className="p-6 sm:p-8 space-y-8 flex-1">
+            {/* Console démo applicative : panne du service de notification (SIMULATION navigateur) */}
+            <div className="space-y-3" data-testid="app-demo-console">
+              <h4 className="caption-3 text-gold-400 flex items-center gap-2">
+                <BellSlash className="w-4 h-4 shrink-0" />
+                <span>Console démo applicative · Outils Jury &amp; Soutenance</span>
+              </h4>
+              <div className="rounded-xl border border-obsidian-700/80 bg-obsidian-900 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 min-w-0">
+                  <p className="caption-3 text-platinum-50 font-semibold">
+                    Service de notification :{" "}
+                    <span className={notificationOutage ? "text-[#ef4444]" : "text-[#10b981]"}>
+                      {notificationOutage ? "HORS SERVICE (panne simulée)" : "actif"}
+                    </span>
+                  </p>
+                  <p className="caption-5 text-platinum-400">
+                    Simulation côté navigateur : aucun service réel n’est coupé. Le transaction-service n’appelle jamais le
+                    notification-service, donc le virement reste confirmé. Preuve réelle :{" "}
+                    <code className="text-gold-400 font-mono">docker compose stop notification-service</code>.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant={notificationOutage ? "secondary" : "danger"}
+                  size="md"
+                  onClick={toggleNotificationOutage}
+                  aria-pressed={notificationOutage}
+                  className="shrink-0"
+                >
+                  {notificationOutage ? <BellRinging className="w-4 h-4 shrink-0" /> : <BellSlash className="w-4 h-4 shrink-0" />}
+                  <span>{notificationOutage ? "Rétablir le Service Notification" : "Injecter Panne Notification"}</span>
+                </Button>
+              </div>
+            </div>
+
             {/* Live Metrics Grid */}
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">

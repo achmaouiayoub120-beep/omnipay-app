@@ -2,12 +2,14 @@ import React from 'react';
 import { ArrowLeft, ShieldCheck, Lightning, Lock, Key, Buildings } from '@phosphor-icons/react';
 import { useTransferStore } from '../transfers.store';
 import { formatMinorToCurrency } from '../../../shared/lib/money';
-import { maskIban, INTERNAL_ACCOUNTS } from '../../../shared/lib/iban';
+import { maskIban, INTERNAL_ACCOUNTS, accountIdForUsername } from '../../../shared/lib/iban';
+import { useAuthStore } from '../../auth/auth.store';
 import { Button } from '@/shared/ui';
 
 export const StepReview: React.FC = () => {
   const { draft, idempotencyKey, setStep } = useTransferStore();
-  const userAccount = INTERNAL_ACCOUNTS['ACC-USER-003'];
+  const username = useAuthStore((s) => s.session?.username);
+  const userAccount = INTERNAL_ACCOUNTS[accountIdForUsername(username)] || INTERNAL_ACCOUNTS['ACC-USER-003'];
 
   if (!draft.beneficiary) {
     return null;

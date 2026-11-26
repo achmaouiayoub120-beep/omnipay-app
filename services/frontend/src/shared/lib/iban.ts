@@ -159,3 +159,20 @@ export function resolveAccountToIban(accountId: string): string {
   // Fallback for demo accounts if unspecified
   return INTERNAL_ACCOUNTS['ACC-USER-003'].iban;
 }
+
+/**
+ * Compte bancaire de démonstration d'un utilisateur (migrations Flyway du transaction-service).
+ * Le serveur débite toujours le compte de l'appelant lu dans le JWT : cette table ne sert qu'à l'affichage.
+ */
+export function accountIdForUsername(username: string | null | undefined): string {
+  switch ((username || '').toLowerCase()) {
+    case 'alice':
+      return 'ACC-ALICE-001';
+    case 'bob':
+      return 'ACC-BOB-002';
+    case 'admin':
+      return 'ACC-ADMIN-004';
+    default:
+      return 'ACC-USER-003';
+  }
+}

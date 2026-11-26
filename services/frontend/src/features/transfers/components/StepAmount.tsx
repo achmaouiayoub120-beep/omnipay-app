@@ -3,10 +3,9 @@ import { ArrowLeft, ArrowRight, Lightning, ShieldWarning, Check } from '@phospho
 import { useTransferStore } from '../transfers.store';
 import { formatMinorToCurrency, parseInputToMinor } from '../../../shared/lib/money';
 import { maskIban } from '../../../shared/lib/iban';
+import { useAccountsStore } from '../../accounts/accounts.store';
 import { Button } from '@/shared/ui';
 
-// Solde compte utilisateur principal (ACC-USER-003): 14 250,00 €
-const CURRENT_BALANCE_MINOR = 1425000;
 const DAILY_LIMIT_MINOR = 500000; // 5 000,00 €
 
 export const StepAmount: React.FC = () => {
@@ -15,13 +14,16 @@ export const StepAmount: React.FC = () => {
     draft.amountMinor > 0 ? (draft.amountMinor / 100).toFixed(2) : ''
   );
   const [error, setError] = useState<string | null>(null);
+  // Solde réel du compte connecté (GET /api/transactions/accounts/me), relu après chaque virement.
+  const availableMinor = useAccountsStore((st) => st.accounts[0]?.balanceMinor);
 
   const amountInputId = useId();
   const reasonInputId = useId();
 
   const currentAmountMinor = draft.amountMinor;
-  const projectedBalanceMinor = CURRENT_BALANCE_MINOR - currentAmountMinor;
-  const isOverBalance = projectedBalanceMinor < 0;
+  const projectedBalanceMinor = availableMinor === undefined ? undefined : availableMinor - currentAmountMinor;
+  // Simple avertissement : le serveur reste l'autorité (il répond HTTP 422 et le toast rouge détaille le solde).
+  const isOverBalance = projectedBalanceMinor !== undefined && projectedBalanceMinor < 0;
   const isOverDailyLimit = currentAmountMinor > DAILY_LIMIT_MINOR;
 
   const handleInputChange = (raw: string) => {
@@ -31,9 +33,7 @@ export const StepAmount: React.FC = () => {
     const minor = parseInputToMinor(sanitized);
     setAmountMinor(minor);
 
-    if (minor > CURRENT_BALANCE_MINOR) {
-      setError('Le montant dépasse le solde disponible sur ce compte.');
-    } else if (minor > DAILY_LIMIT_MINOR) {
+    if (minor > DAILY_LIMIT_MINOR) {
       setError('Le montant dépasse le plafond journalier autorisé (5 000,00 €).');
     } else {
       setError(null);
@@ -41,14 +41,14 @@ export const StepAmount: React.FC = () => {
   };
 
   const handleAddPreset = (addMinor: number) => {
-    const nextMinor = Math.min(CURRENT_BALANCE_MINOR, currentAmountMinor + addMinor);
+    const nextMinor = Math.min(availableMinor ?? Number.MAX_SAFE_INTEGER, currentAmountMinor + addMinor);
     setAmountMinor(nextMinor);
     setInputValue((nextMinor / 100).toFixed(2));
     setError(null);
   };
 
   const handleSetMax = () => {
-    const maxMinor = Math.min(CURRENT_BALANCE_MINOR, DAILY_LIMIT_MINOR);
+    const maxMinor = Math.min(availableMinor ?? DAILY_LIMIT_MINOR, DAILY_LIMIT_MINOR);
     setAmountMinor(maxMinor);
     setInputValue((maxMinor / 100).toFixed(2));
     setError(null);
@@ -57,10 +57,6 @@ export const StepAmount: React.FC = () => {
   const handleNext = () => {
     if (currentAmountMinor <= 0) {
       setError('Veuillez saisir un montant supérieur à 0,00 €.');
-      return;
-    }
-    if (isOverBalance) {
-      setError('Solde disponible insuffisant pour ce virement.');
       return;
     }
     if (isOverDailyLimit) {
@@ -155,7 +151,7 @@ export const StepAmount: React.FC = () => {
           <div className="p-3 bg-obsidian-900 rounded-lg border border-obsidian-700/70">
             <span className="caption-5 text-platinum-400 block">Solde disponible</span>
             <span className="caption-3 font-mono tabular-nums text-platinum-50 mt-0.5 block">
-              {formatMinorToCurrency(CURRENT_BALANCE_MINOR)}
+              {availableMinor === undefined ? '—' : formatMinorToCurrency(availableMinor)}
             </span>
           </div>
           <div className="p-3 bg-obsidian-900 rounded-lg border border-obsidian-700/70">
@@ -165,7 +161,7 @@ export const StepAmount: React.FC = () => {
                 isOverBalance ? 'text-crimson-500' : 'text-emerald-500'
               }`}
             >
-              {formatMinorToCurrency(projectedBalanceMinor)}
+              {projectedBalanceMinor === undefined ? '—' : formatMinorToCurrency(projectedBalanceMinor)}
             </span>
           </div>
         </div>
@@ -227,6 +223,13 @@ export const StepAmount: React.FC = () => {
         </div>
       </button>
 
+      {isOverBalance && !error && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2 caption-4 text-amber-500" role="status">
+          <ShieldWarning className="w-4 h-4 shrink-0" />
+          <span>Montant supérieur au solde disponible : le serveur refusera ce virement (HTTP 422).</span>
+        </div>
+      )}
+
       {/* Error display */}
       {error && (
         <div className="p-3 bg-crimson-500/10 border border-crimson-500/30 rounded-lg flex items-center gap-2 caption-4 text-crimson-500">
@@ -252,7 +255,7 @@ export const StepAmount: React.FC = () => {
           variant="primary"
           size="md"
           onClick={handleNext}
-          disabled={currentAmountMinor <= 0 || isOverBalance || isOverDailyLimit}
+          disabled={currentAmountMinor <= 0 || isOverDailyLimit}
         >
           <span>Vérifier le récapitulatif</span>
           <ArrowRight className="w-4 h-4 shrink-0" />
