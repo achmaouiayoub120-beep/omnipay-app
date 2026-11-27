@@ -21,10 +21,10 @@
 
 ```powershell
 docker compose down -v ; docker compose up -d --build      # remet alice à 1 000 € et bob à 500 €
-cd services/frontend ; npm ci --legacy-peer-deps ; npm run dev   # portail sur http://localhost:3000 (proxy /api vers les microservices)
+cd services/frontend ; npm ci --legacy-peer-deps ; npm run dev   # option : portail Vite sur http://localhost:3000 ; par défaut le portail est servi par Nginx sur http://localhost:8080 (soutenance.ps1)
 ```
 
-- Le portail appelle `http://localhost:8082` pour les virements (variable `VITE_API_URL` pour changer la cible) : les microservices doivent tourner sur la même machine.
+- Le portail appelle l'API en chemins relatifs (`/api/...`, proxy Nginx ou Vite) : il fonctionne avec `localhost`, l'IP ou le nom DNS du poste, sans dépendre de la configuration CORS. `VITE_API_URL` (build) permet de cibler un autre hôte.
 - Deux onglets : onglet 1 pour `alice`, onglet 2 (fenêtre privée) pour `bob`. Le jeton vit en mémoire : **recharger la page déconnecte**.
 - Pour la panne notification, il faut ouvrir la Tour de Contrôle, réservée à `admin` (bouton « Mode Jury » ou `Ctrl+Shift+J`). L'état de la panne est conservé en mémoire tant que
   la page n'est pas rechargée : injectez-la **avant** de vous connecter en `alice` (voir scénario 2, étape 5).

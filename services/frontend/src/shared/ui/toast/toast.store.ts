@@ -5,6 +5,7 @@
  */
 
 import { create } from 'zustand';
+import { uuid } from '../../lib/uuid';
 
 export type ToastKind = 'success' | 'error' | 'warning' | 'info';
 
@@ -30,7 +31,7 @@ export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
 
   push: (kind, title, description, durationMs = DEFAULT_DURATION_MS) => {
-    const id = crypto.randomUUID();
+    const id = uuid();
     set((state) => ({
       // On garde les plus récents : un triple-clic ne doit pas noyer l'écran.
       toasts: [...state.toasts, { id, kind, title, description, durationMs }].slice(-MAX_VISIBLE_TOASTS),

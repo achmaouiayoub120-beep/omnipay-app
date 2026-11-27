@@ -61,6 +61,9 @@ describe('Toasts de virement et idempotence', () => {
 
     expect(await useTransferStore.getState().submitTransfer()).toBe(true);
 
+    // Appels same-origin (chemins relatifs) : le portail ne dépend pas du CORS des microservices
+    expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith('/api/transactions'))).toBe(true);
+
     const [green] = toastsOf('success');
     expect(green.title).toBe('Virement confirmé');
     expect(green.description).toContain('tx-123');

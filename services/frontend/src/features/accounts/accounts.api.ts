@@ -4,10 +4,8 @@
  */
 
 import { useAuthStore } from '../auth/auth.store';
+import { API_BASE_URL } from '../../shared/lib/api';
 
-const API_BASE_URL =
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ||
-  (typeof window !== 'undefined' && window.location?.origin ? '' : 'http://localhost:8082');
 
 export interface BackendAccountView {
   accountId: string;

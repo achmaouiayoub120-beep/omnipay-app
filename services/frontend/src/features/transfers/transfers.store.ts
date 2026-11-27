@@ -30,6 +30,7 @@ import { useAuthStore } from '../auth/auth.store';
 import { useAccountsStore } from '../accounts/accounts.store';
 import { useTransactionsStore } from '../transactions/transactions.store';
 import { useJuryStore } from '../jury/jury.store';
+import { uuid } from '../../shared/lib/uuid';
 
 // Initial verified beneficiaries (OmniPay ecosystem)
 const DEFAULT_BENEFICIARIES: Beneficiary[] = [
@@ -109,7 +110,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
   currentStep: 'beneficiary',
   draft: { ...EMPTY_DRAFT },
   beneficiaries: DEFAULT_BENEFICIARIES,
-  idempotencyKey: crypto.randomUUID(),
+  idempotencyKey: uuid(),
   lastReceipt: null,
   isLoading: false,
   pendingCount: 0,
@@ -121,7 +122,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
     set((state) => ({
       draft: { ...state.draft, beneficiary },
       // Nouvelle intention (autre bénéficiaire) = nouvelle clé d'idempotence
-      idempotencyKey: state.draft.beneficiary?.id === beneficiary.id ? state.idempotencyKey : crypto.randomUUID(),
+      idempotencyKey: state.draft.beneficiary?.id === beneficiary.id ? state.idempotencyKey : uuid(),
       errorMessage: null,
     }));
   },
@@ -153,7 +154,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
     set((state) => ({
       beneficiaries: [newBen, ...state.beneficiaries],
       draft: { ...state.draft, beneficiary: newBen },
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: uuid(),
       errorMessage: null,
     }));
 
@@ -163,7 +164,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
   setAmountMinor: (amountMinor) => {
     set((state) => ({
       draft: { ...state.draft, amountMinor },
-      idempotencyKey: state.draft.amountMinor === amountMinor ? state.idempotencyKey : crypto.randomUUID(),
+      idempotencyKey: state.draft.amountMinor === amountMinor ? state.idempotencyKey : uuid(),
       errorMessage: null,
     }));
   },
@@ -172,7 +173,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
     const next = reason.slice(0, 140);
     set((state) => ({
       draft: { ...state.draft, reason: next },
-      idempotencyKey: state.draft.reason === next ? state.idempotencyKey : crypto.randomUUID(),
+      idempotencyKey: state.draft.reason === next ? state.idempotencyKey : uuid(),
       errorMessage: null,
     }));
   },
@@ -187,7 +188,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
     set({
       currentStep: 'beneficiary',
       draft: { ...EMPTY_DRAFT },
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: uuid(),
       lastReceipt: null,
       isLoading: false,
       pendingCount: 0,
@@ -268,7 +269,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
           reason: draft.reason || 'Virement ponctuel SEPA',
           executedAt: new Date().toISOString(),
           idempotencyKey,
-          securitySealHash: `ESTC-SEAL-${crypto.randomUUID().slice(0, 12).toUpperCase()}`,
+          securitySealHash: `ESTC-SEAL-${uuid().slice(0, 12).toUpperCase()}`,
           clearingNetwork: draft.instant
             ? 'SEPA INSTANT SETTLEMENT (TIPS / RT1)'
             : 'SEPA STANDARD CLEARING (STEP2)',
@@ -301,7 +302,7 @@ export const useTransferStore = create<TransferState>((set, get) => ({
       const definitive = !!apiError && apiError.status !== undefined && apiError.status >= 400 && apiError.status < 500 && apiError.status !== 429;
       set({
         errorMessage: message,
-        ...(definitive && get().idempotencyKey === idempotencyKey ? { idempotencyKey: crypto.randomUUID() } : {}),
+        ...(definitive && get().idempotencyKey === idempotencyKey ? { idempotencyKey: uuid() } : {}),
       });
 
       if (apiError?.status !== 422) {
