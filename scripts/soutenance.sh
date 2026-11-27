@@ -248,8 +248,8 @@ EOF
   fi
   cat << "EOF"
 
-Comptes de démonstration soutenance (mot de passe universel : password) :
-  alice (ROLE_USER) | bob (ROLE_USER) | admin (ROLE_ADMIN) | auditor (ROLE_AUDITOR)
+Comptes de démonstration soutenance :
+  alice (alice-demo-pass) | bob (bob-demo-pass) | admin (password) | auditor (password) | user (password)
 Raccourcis UI : Ctrl+K (Recherche) | Ctrl+Shift+J (Mode Jury) | Bouton Œil (PAN/CVV)
 =============================================================================
 EOF
