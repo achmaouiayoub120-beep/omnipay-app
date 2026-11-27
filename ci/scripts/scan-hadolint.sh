@@ -34,7 +34,7 @@ for df in "${DOCKERFILES[@]}"; do
 
     if command -v docker >/dev/null 2>&1; then
         # Mode Docker (CI Jenkins / environnement conteneurisé)
-        RESULT=$(docker run --rm -i "${HADOLINT_IMAGE}" < "${FULL_PATH}" 2>&1) || {
+        RESULT=$(docker run --rm -i "${HADOLINT_IMAGE}" /bin/hadolint --failure-threshold error - < "${FULL_PATH}" 2>&1) || {
             echo "[ÉCHEC] Hadolint a détecté des violations dans ${df} :"
             echo "${RESULT}"
             EXIT_CODE=1

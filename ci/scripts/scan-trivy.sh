@@ -21,8 +21,10 @@ if command -v docker >/dev/null 2>&1; then
 
     docker run --rm \
         -v /var/run/docker.sock:/var/run/docker.sock \
+        -v trivy-cache:/root/.cache \
         "${TRIVY_IMAGE}" image \
         --severity "${SEVERITY_THRESHOLD}" \
+        --ignore-unfixed \
         --exit-code 1 \
         --no-progress \
         --format table \

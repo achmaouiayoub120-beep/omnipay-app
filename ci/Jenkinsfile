@@ -209,12 +209,13 @@ pipeline {
                     def services = env.SERVICES.split(',')
                     for (svc in services) {
                         def imageName = "${env.CI_REGISTRY}/${env.CI_PROJECT}/${svc}-service:${env.BUILD_TAG}"
+                        def buildContext = (svc == 'frontend') ? 'services/frontend' : '.'
                         echo "--- [Build] ${imageName} ---"
                         sh """
                             docker build \
                                 -t ${imageName} \
                                 -f services/${svc}/Dockerfile \
-                                services/${svc}/
+                                ${buildContext}
                         """
                         echo "--- [Trivy Scan] ${imageName} ---"
                         sh """
