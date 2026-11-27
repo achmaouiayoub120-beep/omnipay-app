@@ -1,0 +1,31 @@
+# Profil DEV : 1 replique par service, logs DEBUG, ressources minimales.
+#   helm install omnipay helm/omnipay -f helm/omnipay/values-dev.yaml
+
+replicaCount: 1
+logLevel: DEBUG
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "128Mi"
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+
+podAntiAffinity:
+  enabled: false
+podDisruptionBudget:
+  enabled: false
+autoscaling:
+  enabled: false
+
+# Portail web + Ingress (app.omnipay.local, omnipay.local)
+frontend:
+  enabled: true
+  replicaCount: 1
+ingress:
+  enabled: true
+
+# Demo jury : bouton "Simuler Erreur 500" actif
+chaos:
+  enabled: true

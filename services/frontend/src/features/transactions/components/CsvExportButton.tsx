@@ -1,0 +1,91 @@
+import React from 'react';
+import { DownloadSimple } from '@phosphor-icons/react';
+import { Transaction } from '../transactions.types';
+import { formatMinorToDecimal } from '../../../shared/lib/money';
+import { Button } from '@/shared/ui';
+
+interface CsvExportButtonProps {
+  transactions: Transaction[];
+  className?: string;
+}
+
+export const CsvExportButton: React.FC<CsvExportButtonProps> = ({
+  transactions,
+  className,
+}) => {
+  const handleExportCsv = () => {
+    if (transactions.length === 0) return;
+
+    const headers = [
+      'Identifiant Transaction',
+      'Date (AAAA-MM-JJ)',
+      'Heure (UTC)',
+      'Type Opération',
+      'Contrepartie',
+      'IBAN Contrepartie',
+      'Catégorie',
+      'Motif / Référence',
+      'Montant EUR',
+      'Frais EUR',
+      'Statut',
+      'Sceau Cryptographique',
+    ];
+
+    const escapeCsv = (str: string) => {
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
+    const rows = transactions.map((tx) => {
+      const dateObj = new Date(tx.createdAt);
+      const dateStr = dateObj.toISOString().slice(0, 10);
+      const timeStr = dateObj.toTimeString().slice(0, 8);
+      const formattedAmount = `${tx.direction === 'DEBIT' ? '-' : '+'}${formatMinorToDecimal(
+        tx.amountMinor
+      )}`;
+
+      return [
+        escapeCsv(tx.id),
+        escapeCsv(dateStr),
+        escapeCsv(timeStr),
+        escapeCsv(tx.direction === 'DEBIT' ? 'Débit' : 'Crédit'),
+        escapeCsv(tx.counterpartyName),
+        escapeCsv(tx.counterpartyIban),
+        escapeCsv(tx.category),
+        escapeCsv(tx.reason),
+        escapeCsv(formattedAmount),
+        escapeCsv('0.00'),
+        escapeCsv(tx.status),
+        escapeCsv(tx.securitySealHash || 'ESTC-VERIFIED'),
+      ].join(';');
+    });
+
+    // Add UTF-8 BOM (\uFEFF) for Microsoft Excel compatibility with accents
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `omnipay-releve-transactions-${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      onClick={handleExportCsv}
+      disabled={transactions.length === 0}
+      className={className}
+    >
+      <DownloadSimple className="w-4 h-4 text-gold-400 shrink-0" />
+      <span>Exporter CSV</span>
+    </Button>
+  );
+};

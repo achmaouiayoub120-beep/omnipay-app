@@ -1,0 +1,66 @@
+# Valeurs Helm - falcosecurity/falco (chart 9.2.2), capteur runtime eBPF sur K3s.
+#   helm upgrade --install falco falcosecurity/falco --version 9.2.2 -n falco \
+#     -f infra/falco/values-falco.yaml \
+#     --set-file "customRules.falco-banking-rules\.yaml=infra/falco/falco-banking-rules.yaml"
+# (install-falco.sh / install-falco.ps1 font exactement cela)
+
+# Sonde "modern eBPF" : fonctionne sans compiler de module noyau (noyau >= 5.8).
+# leastPrivileged : capabilities {BPF, PERFMON, SYS_RESOURCE, SYS_PTRACE} au lieu de privileged.
+driver:
+  kind: modern_ebpf
+  modernEbpf:
+    leastPrivileged: true
+
+# Metadonnees conteneur/pod (k8s.ns.name, k8s.pod.name) : le chart detecte aussi la
+# socket containerd de K3s (/run/k3s/containerd/containerd.sock).
+collectors:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+tty: true
+
+falco:
+  # Alertes JSON structurees sur stdout (collectables par Loki/Promtail) ...
+  json_output: true
+  json_include_output_property: true
+  stdout_output:
+    enabled: true
+  # ... et syslog du noeud.
+  syslog_output:
+    enabled: true
+  # Les regles bancaires sont chargees depuis customRules (voir commande ci-dessus).
+  rules_files:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/falco_rules.local.yaml
+    - /etc/falco/rules.d
+
+# Falcosidekick : relaie chaque alerte vers Alertmanager (stack kube-prometheus de P5).
+falcosidekick:
+  enabled: true
+  config:
+    alertmanager:
+      hostport: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093
+      minimumpriority: warning
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Pas de telechargement automatique de regles externes : seul le jeu verifie livre avec le
+# chart + nos regles bancaires sont charges (reproductibilite, pas d'acces reseau au runtime).
+falcoctl:
+  artifact:
+    install:
+      enabled: false
+    follow:
+      enabled: false

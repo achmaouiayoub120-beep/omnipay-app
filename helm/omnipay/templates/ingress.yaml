@@ -1,0 +1,45 @@
+{{- if and .Values.ingress.enabled .Values.frontend.enabled }}
+{{- $ctx := dict "root" $ "name" "frontend" }}
+---
+# Point d'entree du portail web : app.omnipay.local et omnipay.local -> service frontend (port 8080).
+# Le frontend relaie lui-meme /api/auth et /api/transactions vers les microservices.
+# (L'Ingress API dedie api.omnipay.local est dans infra/ingress/ingress-routes.yaml.)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "omnipay.fullname" $ctx }}
+  labels:
+    {{- include "omnipay.labels" $ctx | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 1m
+    {{- if .Values.ingress.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.clusterIssuer }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        {{- range .Values.ingress.hosts }}
+        - {{ . }}
+        {{- end }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "omnipay.fullname" $ctx }}
+                port:
+                  number: {{ $.Values.frontend.service.port }}
+    {{- end }}
+{{- end }}

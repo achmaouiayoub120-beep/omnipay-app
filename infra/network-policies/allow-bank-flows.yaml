@@ -1,0 +1,233 @@
+# Flux autorises (moindre privilege reseau). Un flux n'est possible que si les DEUX
+# extremites l'autorisent : egress du pod source ET ingress du pod destination.
+#
+#   Ingress controller -> auth:8081, transaction:8082
+#   auth, transaction  -> postgresql:5432
+#   transaction        -> notification:8083
+#   Prometheus         -> auth:8081, transaction:8082, notification:8083
+#   tous les pods      -> kube-dns:53 (UDP/TCP)
+#   TOUT LE RESTE      -> bloque (ex: notification -> postgresql, sortie Internet)
+#
+# Pods selectionnes par app.kubernetes.io/name = cles `services` du chart helm/omnipay
+# (auth, transaction, notification) et `postgresql` pour la base.
+# Appliquer dans chaque namespace, apres default-deny-all.yaml :
+#   for ns in omnipay-dev omnipay-recette omnipay-prod; do
+#     kubectl apply -n "$ns" -f infra/network-policies/allow-bank-flows.yaml
+#   done
+---
+# DNS : tous les pods -> CoreDNS (kube-system/kube-dns)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Ingress controller NGINX -> auth-service (8081)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller-to-auth
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: auth
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+# Ingress controller NGINX -> transaction-service (8082)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-controller-to-transaction
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: transaction
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8082
+---
+# auth-service -> postgresql (5432), cote sortie
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-auth-egress-to-postgresql
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: auth
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# transaction-service -> postgresql (5432), cote sortie
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-transaction-egress-to-postgresql
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: transaction
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# postgresql : n'accepte QUE auth et transaction (notification en est exclu)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgresql-ingress-from-auth-transaction
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: transaction
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# transaction-service -> notification-service (8083), cote sortie
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-transaction-egress-to-notification
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: transaction
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: notification
+      ports:
+        - protocol: TCP
+          port: 8083
+---
+# notification-service : n'accepte que transaction (8083)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notification-ingress-from-transaction
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: notification
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: transaction
+      ports:
+        - protocol: TCP
+          port: 8083
+---
+# Prometheus (namespace monitoring) -> /actuator/prometheus des 3 microservices
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  labels:
+    app.kubernetes.io/part-of: omnipay
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: omnipay
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8081
+        - protocol: TCP
+          port: 8082
+        - protocol: TCP
+          port: 8083

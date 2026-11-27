@@ -1,0 +1,117 @@
+# cert-manager : CA interne OmniPay Zero-Trust + certificat TLS de l'API.
+#
+# Prerequis (une fois) :
+#   helm repo add jetstack https://charts.jetstack.io
+#   helm upgrade --install cert-manager jetstack/cert-manager \
+#     --version v1.15.3 -n cert-manager --create-namespace --set crds.enabled=true
+# Puis :
+#   kubectl apply -f infra/ingress/cert-manager-issuer.yaml
+#
+# Chaine : selfsigned-bootstrap -> Certificate omnipay-ca (CA) -> ClusterIssuer
+# omnipay-ca-issuer -> Certificate omnipay-tls (api.omnipay.local, *.omnipay.local).
+# L'emission et le renouvellement sont automatiques (renewBefore).
+---
+# 1. Emetteur auto-signe, utilise uniquement pour creer la CA interne.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+# 2. Certificat de la CA locale OmniPay Zero-Trust.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: omnipay-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: omnipay-zero-trust-ca
+  secretName: omnipay-ca-secret
+  duration: 43800h # 5 ans
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: selfsigned-bootstrap
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# 3. Emetteur de la CA locale : c'est lui que referencent les Ingress et Certificates.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: omnipay-ca-issuer
+spec:
+  ca:
+    secretName: omnipay-ca-secret
+---
+# 4. Certificat TLS de l'API, un par namespace applicatif (un Secret est namespace).
+#    api.omnipay.local pour le dev ; *.omnipay.local couvre aussi api-recette / api-prod.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: omnipay-tls
+  namespace: omnipay-dev
+spec:
+  secretName: omnipay-tls-secret
+  commonName: api.omnipay.local
+  dnsNames:
+    - api.omnipay.local
+    - "*.omnipay.local"
+  duration: 2160h # 90 jours
+  renewBefore: 360h # renouvele 15 jours avant expiration
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: omnipay-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: omnipay-tls
+  namespace: omnipay-recette
+spec:
+  secretName: omnipay-tls-secret
+  commonName: api.omnipay.local
+  dnsNames:
+    - api.omnipay.local
+    - "*.omnipay.local"
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: omnipay-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: omnipay-tls
+  namespace: omnipay-prod
+spec:
+  secretName: omnipay-tls-secret
+  commonName: api.omnipay.local
+  dnsNames:
+    - api.omnipay.local
+    - "*.omnipay.local"
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: omnipay-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

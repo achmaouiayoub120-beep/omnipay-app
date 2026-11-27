@@ -1,0 +1,17 @@
+# Variables communes aux environnements infra/terraform/envs/{dev,recette,prod}.
+# Copier en terraform.tfvars (ignore par git), puis, dans l'environnement voulu :
+#   terraform plan -var-file=../../terraform.tfvars
+# Ne JAMAIS y mettre de secret (mot de passe, token, cle privee).
+#
+# Les parametres propres a chaque environnement (quotas, NodePorts) sont dans
+# envs/<env>/main.tf. Les CIDR et le pare-feu se reglent dans modules/network
+# (variables node_cidr, admin_cidr, pod_cidr, service_cidr, expose_nodeports).
+
+# Kubeconfig du cluster K3s (recupere par le playbook Ansible).
+kubeconfig_path = "~/.kube/config"
+
+# Domaine interne du cluster (annotation des namespaces ; hotes Ingress : api.omnipay.local).
+cluster_domain = "omnipay.local"
+
+# Backend d'etat (non parametrable ici) : exporter avant `terraform init`
+#   export KUBE_CONFIG_PATH=~/.kube/config

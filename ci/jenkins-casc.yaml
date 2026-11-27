@@ -45,6 +45,12 @@ credentials:
               username: "${HARBOR_ROBOT_USER:-robot-omnipay-ci}"
               password: "${HARBOR_ROBOT_PASSWORD:-ChangeMeHarborRobotSecret!}"
               description: "Compte robot Harbor pour le push d'images"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-omnipay-gitops"
+              username: "${GITHUB_GITOPS_USER:-achmaouiayoub120-beep}"
+              password: "${GITHUB_GITOPS_TOKEN:-dummy-gitops-token}"
+              description: "Jeton d'accès GitHub pour le write-back GitOps"
 
 jobs:
   - script: >
@@ -55,9 +61,9 @@ jobs:
             scm {
               git {
                 remote {
-                  url('https://github.com/omnipay-org/omnipay-app.git')
+                  url('https://github.com/achmaouiayoub120-beep/omnipay-app.git')
                 }
-                branch('*/develop')
+                branch('*/release/s4-consolidation')
               }
             }
             scriptPath('ci/Jenkinsfile')

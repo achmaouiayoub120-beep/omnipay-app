@@ -2,12 +2,15 @@ FROM jenkins/jenkins:lts-jdk21
 
 USER root
 
-# Installation des outils nécessaires sur l'hôte CI (Git, curl, Docker CLI)
+# Installation des outils nécessaires sur l'hôte CI (Git, curl, Docker CLI, Maven, Node.js)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
     gnupg \
+    maven \
+    nodejs \
+    npm \
     && install -m 0755 -d /etc/apt/keyrings \
     && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
     && chmod a+r /etc/apt/keyrings/docker.gpg \
@@ -24,6 +27,8 @@ RUN jenkins-plugin-cli --plugins \
     credentials-binding:latest \
     pipeline-stage-view:latest \
     docker-plugin:latest \
-    cloudbees-folder:latest
+    cloudbees-folder:latest \
+    timestamper:latest \
+    sonar:latest
 
 USER jenkins

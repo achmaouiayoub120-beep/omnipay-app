@@ -1,0 +1,41 @@
+# Profil PROD : 3 repliques par service, anti-affinite stricte par noeud, PDB, HPA, ressources garanties.
+#   helm install omnipay helm/omnipay -f helm/omnipay/values-prod.yaml
+# Prerequis : au moins 3 noeuds (anti-affinite "required" sur kubernetes.io/hostname).
+
+replicaCount: 3
+logLevel: INFO
+
+resources:
+  requests:
+    cpu: "150m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+# Aucun pod d'un meme service sur le meme noeud
+podAntiAffinity:
+  enabled: true
+  type: required
+
+# Au moins 2 pods disponibles pendant les operations de maintenance (drain de noeud...)
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+# Portail web + Ingress (app.omnipay.local, omnipay.local)
+frontend:
+  enabled: true
+  replicaCount: 2
+ingress:
+  enabled: true
+
+# Injection de panne interdite en production
+chaos:
+  enabled: false

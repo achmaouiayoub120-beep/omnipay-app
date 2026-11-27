@@ -1,0 +1,79 @@
+# Valeurs Helm - hashicorp/vault (chart 0.34.1), dimensionne pour K3s.
+#   helm upgrade --install vault hashicorp/vault --version 0.34.1 \
+#     -n vault -f infra/vault/values-vault.yaml
+#
+# Mode production local : standalone, stockage fichier sur PVC, AUCUN mode dev.
+# L'injecteur est desactive : les secrets sont distribues par External Secrets Operator.
+global:
+  enabled: true
+  tlsDisable: true # lab : HTTP interne au cluster (voir ADR-011, TLS = amelioration S4)
+
+injector:
+  enabled: false
+
+server:
+  # Jamais de mode dev (cles et donnees en memoire, token "root" connu).
+  dev:
+    enabled: false
+
+  standalone:
+    enabled: true
+    config: |-
+      ui = true
+      # mlock exige IPC_LOCK, interdit par le niveau PSS "restricted".
+      # Le swap est desactive sur le noeud par Ansible (playbook-k3s-setup.yml).
+      disable_mlock = true
+
+      listener "tcp" {
+        tls_disable = 1
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+      }
+
+      storage "file" {
+        path = "/vault/data"
+      }
+
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+
+  # Stockage persistant : PVC 5Gi sur le provisionneur local-path de K3s.
+  dataStorage:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+    accessMode: ReadWriteOnce
+
+  # Pas de volume d'audit par defaut (a activer avec un PVC dedie).
+  auditStorage:
+    enabled: false
+
+  # Non-root (uid 100 = utilisateur "vault" de l'image), compatible PSS restricted.
+  # Core dumps : desactives au niveau du noeud par Ansible (fs.suid_dumpable=0,
+  # kernel.core_pattern=|/bin/false) ; un pod ne peut pas fixer RLIMIT_CORE.
+  statefulSet:
+    securityContext:
+      pod:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      container:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+
+# Web UI exposee en NodePort 30006 (targetPort 8200).
+ui:
+  enabled: true
+  serviceType: NodePort
+  serviceNodePort: 30006
+  externalPort: 8200
+  targetPort: 8200

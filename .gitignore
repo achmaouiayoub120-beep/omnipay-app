@@ -78,3 +78,13 @@ dependency-check-report/
 report.html
 zap-report.*
 k6-summary.json
+
+# Kubernetes
+kubeconfig*
+
+# Rapports generes (audit IaC)
+build/
+
+# Assistant & Agent tooling
+.agents/
+skills-lock.json
