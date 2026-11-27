@@ -23,7 +23,8 @@ interface TransactionsState {
   selectedTransaction: Transaction | null;
 
   // Actions
-  loadTransactions: () => Promise<void>;
+  /** `silent` : rafraîchissement en arrière-plan, sans afficher l'état de chargement (pas de clignotement). */
+  loadTransactions: (silent?: boolean) => Promise<void>;
   setFilterDirection: (dir: TransactionDirection) => void;
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (cat: TransactionCategory | 'ALL') => void;

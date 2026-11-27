@@ -2,6 +2,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Cibles des proxys /api (dev et preview). Par défaut les ports de docker-compose ; si soutenance.ps1 a dû choisir d'autres ports hôtes
+// (AUTH_PORT, TRANSACTION_PORT, NOTIFICATION_PORT), exporter OMNIPAY_AUTH_URL / OMNIPAY_TRANSACTION_URL / OMNIPAY_NOTIFICATION_URL.
+const AUTH_URL = process.env.OMNIPAY_AUTH_URL || 'http://localhost:8081';
+const TRANSACTION_URL = process.env.OMNIPAY_TRANSACTION_URL || 'http://localhost:8082';
+const NOTIFICATION_URL = process.env.OMNIPAY_NOTIFICATION_URL || 'http://localhost:8083';
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -14,15 +20,15 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api/auth': {
-        target: 'http://localhost:8081',
+        target: AUTH_URL,
         changeOrigin: true,
       },
       '/api/transactions': {
-        target: 'http://localhost:8082',
+        target: TRANSACTION_URL,
         changeOrigin: true,
       },
       '/api/notifications': {
-        target: 'http://localhost:8083',
+        target: NOTIFICATION_URL,
         changeOrigin: true,
       },
     },
@@ -32,15 +38,15 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api/auth': {
-        target: 'http://localhost:8081',
+        target: AUTH_URL,
         changeOrigin: true,
       },
       '/api/transactions': {
-        target: 'http://localhost:8082',
+        target: TRANSACTION_URL,
         changeOrigin: true,
       },
       '/api/notifications': {
-        target: 'http://localhost:8083',
+        target: NOTIFICATION_URL,
         changeOrigin: true,
       },
     },
@@ -60,7 +66,7 @@ export default defineConfig({
             '@radix-ui/react-tabs',
             '@radix-ui/react-toast',
           ],
-          icons: ['lucide-react'],
+          icons: ['@phosphor-icons/react'],
         },
       },
     },

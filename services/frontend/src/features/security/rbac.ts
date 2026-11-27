@@ -63,7 +63,7 @@ export function getRoleBadgeInfo(roles: Role[] = []): {
     return {
       primaryRole: 'ROLE_ADMIN',
       label: 'Administrateur Système (DevSecOps)',
-      badgeClass: 'bg-[var(--color-gold)]/10 text-[var(--color-gold)] border-[var(--color-gold)]/30',
+      badgeClass: 'bg-gold-400/10 text-gold-400 border-gold-400/30',
       description: 'Accès complet au registre bancaire, Tour de Contrôle et injection de pannes canary.',
     };
   }
@@ -72,7 +72,7 @@ export function getRoleBadgeInfo(roles: Role[] = []): {
     return {
       primaryRole: 'ROLE_AUDITOR',
       label: 'Auditeur de Sécurité & Conformité',
-      badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/30',
+      badgeClass: 'bg-sky-500/10 text-sky-500 border-sky-500/30',
       description: 'Accès en lecture seule aux flux et traçabilité intégrale du journal eBPF/Vault.',
     };
   }
@@ -80,7 +80,7 @@ export function getRoleBadgeInfo(roles: Role[] = []): {
   return {
     primaryRole: 'ROLE_USER',
     label: 'Client Titulaire de Compte',
-    badgeClass: 'bg-[var(--color-emerald)]/10 text-[var(--color-emerald)] border-[var(--color-emerald)]/30',
+    badgeClass: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
     description: 'Gestion des comptes personnels, virements instantanés et cartes physiques/virtuelles.',
   };
 }

@@ -84,3 +84,7 @@ kubeconfig*
 
 # Rapports generes (audit IaC)
 build/
+
+# Assistant & Agent tooling
+.agents/
+skills-lock.json

@@ -2,17 +2,21 @@
  * OmniPay Zero-Trust - Transfer API Client
  * Enterprise-grade client with strict idempotency (X-Idempotency-Key),
  * in-memory authorization header, and banking error handling.
+ *
+ * Aucun succès simulé : si le serveur est injoignable, l'erreur est remontée (statut 0, réessayable)
+ * et la même clé d'idempotence permet de réessayer sans risque de double débit.
  */
 
 import { useAuthStore } from '../auth/auth.store';
+import { API_BASE_URL } from '../../shared/lib/api';
 import {
   BackendTransferRequest,
   BackendTransferResponse,
 } from './transfers.types';
 
-const API_BASE_URL =
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ||
-  'http://localhost:8082';
+
+/** Statut renvoyé par le serveur quand la clé d'idempotence a déjà été traitée (réponse d'origine rejouée). */
+export const IDEMPOTENT_REPLAY_STATUS = 'IDEMPOTENT_REPLAY';
 
 export class TransferApiError extends Error {
   constructor(
@@ -28,7 +32,7 @@ export class TransferApiError extends Error {
 
 /**
  * Executes a bank transfer through the zero-trust transaction backend.
- * Uses a unique X-Idempotency-Key per transaction submission to protect against duplicates.
+ * Uses a unique X-Idempotency-Key per transaction intent to protect against duplicates.
  */
 export async function submitTransferApi(
   payload: BackendTransferRequest,
@@ -45,100 +49,81 @@ export async function submitTransferApi(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  let response: Response;
   try {
-    const response = await fetch(`${API_BASE_URL}/api/transactions`, {
+    response = await fetch(`${API_BASE_URL}/api/transactions`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
     });
+  } catch {
+    throw new TransferApiError(
+      'Réseau indisponible ou délai dépassé. Réessayez : la même clé d’idempotence évite tout double prélèvement.',
+      0,
+      'NETWORK_ERROR',
+      true
+    );
+  }
 
-    if (response.ok) {
-      return (await response.json()) as BackendTransferResponse;
-    }
+  if (response.ok) {
+    return (await response.json()) as BackendTransferResponse;
+  }
 
-    // Map HTTP error codes to clear banking messages
-    if (response.status === 422) {
-      throw new TransferApiError(
-        'Solde insuffisant pour exécuter ce virement.',
-        422,
-        'INSUFFICIENT_FUNDS',
-        false
-      );
-    }
-
-    if (response.status === 409) {
+  // Map HTTP error codes to clear banking messages (le corps d'erreur du serveur n'est jamais affiché)
+  switch (response.status) {
+    case 422:
+      throw new TransferApiError('Solde insuffisant pour exécuter ce virement.', 422, 'INSUFFICIENT_FUNDS', false);
+    case 409:
       throw new TransferApiError(
         'Une transaction identique avec cette clé d’idempotence a déjà été traitée.',
         409,
         'DUPLICATE_IDEMPOTENT_SUBMISSION',
         false
       );
-    }
-
-    if (response.status === 400) {
-      const errText = await response.text();
+    case 401:
+      throw new TransferApiError('Session expirée ou jeton refusé : reconnectez-vous.', 401, 'UNAUTHORIZED', false);
+    case 400:
       throw new TransferApiError(
-        `Paramètres de virement invalides : ${errText || 'montant ou compte incorrect'}.`,
+        'Paramètres de virement invalides : montant ou compte incorrect.',
         400,
         'INVALID_REQUEST',
         false
       );
-    }
-
-    if (response.status === 403) {
+    case 403:
       throw new TransferApiError(
         'Action non autorisée : vous ne disposez pas des privilèges requis pour débiter ce compte.',
         403,
         'FORBIDDEN',
         false
       );
-    }
-
-    if (response.status === 404) {
+    case 404:
       throw new TransferApiError(
         'Compte émetteur ou bénéficiaire introuvable dans le registre bancaire.',
         404,
         'ACCOUNT_NOT_FOUND',
         false
       );
-    }
-
-    if (response.status === 429) {
+    case 429:
       throw new TransferApiError(
         'Limite de débit atteinte. Veuillez patienter quelques instants.',
         429,
         'RATE_LIMITED',
         true
       );
-    }
-
-    if (response.status >= 500) {
+    default:
+      if (response.status >= 500) {
+        throw new TransferApiError(
+          `Erreur serveur (${response.status}). Réessayez sans risque : la clé d’idempotence est conservée.`,
+          response.status,
+          'SERVER_ERROR',
+          true
+        );
+      }
       throw new TransferApiError(
-        'Incident sur le service de compensation transactionnelle (Erreur 500).',
+        `Échec du virement (Code HTTP: ${response.status}).`,
         response.status,
-        'SERVER_ERROR',
-        true
+        'UNKNOWN_ERROR',
+        false
       );
-    }
-
-    throw new TransferApiError(
-      `Échec du virement (Code HTTP: ${response.status}).`,
-      response.status,
-      'UNKNOWN_ERROR',
-      false
-    );
-  } catch (err: unknown) {
-    if (err instanceof TransferApiError) {
-      throw err;
-    }
-
-    // If network failed (e.g. backend offline in dev/demo)
-    console.warn('[OmniPay Transfer API] Backend network unreachable, simulating demo mode clearance.');
-    // Simulated clearance in local test environment
-    return {
-      transactionId: `TX-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-      status: 'SUCCESS',
-      amount: payload.amount,
-    };
   }
 }

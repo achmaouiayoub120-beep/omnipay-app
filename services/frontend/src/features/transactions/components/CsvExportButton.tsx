@@ -1,7 +1,8 @@
 import React from 'react';
-import { Download } from 'lucide-react';
+import { DownloadSimple } from '@phosphor-icons/react';
 import { Transaction } from '../transactions.types';
 import { formatMinorToDecimal } from '../../../shared/lib/money';
+import { Button } from '@/shared/ui';
 
 interface CsvExportButtonProps {
   transactions: Transaction[];
@@ -75,16 +76,16 @@ export const CsvExportButton: React.FC<CsvExportButtonProps> = ({
   };
 
   return (
-    <button
+    <Button
       type="button"
+      variant="secondary"
+      size="sm"
       onClick={handleExportCsv}
       disabled={transactions.length === 0}
-      className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-[#070A12] border border-white/10 text-gray-300 hover:text-white hover:border-[var(--color-gold)]/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
-        className || ''
-      }`}
+      className={className}
     >
-      <Download className="w-3.5 h-3.5 text-[var(--color-gold)]" />
+      <DownloadSimple className="w-4 h-4 text-gold-400 shrink-0" />
       <span>Exporter CSV</span>
-    </button>
+    </Button>
   );
 };

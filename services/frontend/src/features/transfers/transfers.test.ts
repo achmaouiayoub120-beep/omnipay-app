@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useTransferStore } from './transfers.store';
 
 describe('Transfer Store & 5-Step Wizard', () => {
   beforeEach(() => {
     useTransferStore.getState().resetWizard();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('initializes at beneficiary step with empty draft', () => {
@@ -54,6 +58,16 @@ describe('Transfer Store & 5-Step Wizard', () => {
   });
 
   it('submits transfer with idempotency key and generates verified receipt', async () => {
+    // Le client n'invente plus de succès hors-ligne : on simule la réponse réelle du transaction-service.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) =>
+        new Response(
+          JSON.stringify(init?.method === 'POST' ? { transactionId: 'tx-unit', status: 'SUCCESS', amount: 50 } : []),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
     const ben = useTransferStore.getState().beneficiaries[0];
     useTransferStore.getState().selectBeneficiary(ben);
     useTransferStore.getState().setAmountMinor(5000);

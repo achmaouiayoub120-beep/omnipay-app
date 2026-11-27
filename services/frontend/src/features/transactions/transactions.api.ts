@@ -5,12 +5,11 @@
  */
 
 import { useAuthStore } from '../auth/auth.store';
+import { API_BASE_URL } from '../../shared/lib/api';
 import { Transaction, TransactionBackendView, TransactionCategory } from './transactions.types';
-import { INTERNAL_ACCOUNTS, resolveAccountToIban } from '../../shared/lib/iban';
+import { INTERNAL_ACCOUNTS, resolveAccountToIban, accountIdForUsername } from '../../shared/lib/iban';
+import { uuid } from '../../shared/lib/uuid';
 
-const API_BASE_URL =
-  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ||
-  'http://localhost:8082';
 
 // High-fidelity fallback transactions for demo & offline mode
 const FALLBACK_TRANSACTIONS: Transaction[] = [
@@ -126,7 +125,7 @@ function inferCategory(reason: string, counterparty: string): TransactionCategor
 export async function fetchTransactionsApi(): Promise<Transaction[]> {
   const token = useAuthStore.getState().session?.token;
   const currentUsername = useAuthStore.getState().session?.username || 'user';
-  const currentUserAccount = 'ACC-USER-003';
+  const currentUserAccount = accountIdForUsername(currentUsername);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -165,7 +164,7 @@ export async function fetchTransactionsApi(): Promise<Transaction[]> {
             counterpartyName,
             counterpartyIban,
             category: inferCategory(reason, counterpartyName),
-            idempotencyKey: crypto.randomUUID(),
+            idempotencyKey: uuid(),
             feeMinor: 0,
             securitySealHash: `ESTC-SEAL-${item.id.slice(0, 8).toUpperCase()}`,
           };

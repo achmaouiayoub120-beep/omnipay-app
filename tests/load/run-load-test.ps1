@@ -1,45 +1,104 @@
-﻿# =============================================================================
-# OmniPay Zero-Trust — Lanceur de Test de Charge k6 Automatisé
-# Version : 1.0.0 (Semaine 4)
-# Auteur : Amira Adolf (P2) — Lead Backend & Frontend
-# =============================================================================
+﻿#Requires -Version 7.0
+<#
+.SYNOPSIS
+  Lanceur du test de charge k6 OmniPay (Semaine 4, P2) - équivalent PowerShell 7+ de run-load-test.sh.
 
+.DESCRIPTION
+  Exécute tests/load/k6-transactions-load.js avec le binaire k6 local, sinon avec l'image grafana/k6.
+  Les mots de passe de démo ne sont JAMAIS dans le dépôt : exportez-les avant le lancement.
+
+.PARAMETER Smoke
+  Profil court (1 VU, 10 s) pour vérifier le banc.
+
+.PARAMETER Check
+  Vérifie uniquement les prérequis (variables, k6/Docker, santé des services) sans lancer le test.
+
+.EXAMPLE
+  $env:K6_ALICE_PASSWORD = Read-Host -MaskInput 'alice'
+  $env:K6_BOB_PASSWORD   = Read-Host -MaskInput 'bob'
+  ./tests/load/run-load-test.ps1 -Smoke
+
+.NOTES
+  Code de sortie : celui de k6 (99 = seuil franchi), 2 = configuration invalide.
+#>
 [CmdletBinding()]
-param (
-    [string]$BaseUrl = "http://localhost:8082",
-    [string]$AuthUrl = "http://localhost:8081",
-    [switch]$DryRun
+param(
+    [string]$AuthUrl = $(if ($env:AUTH_URL) { $env:AUTH_URL } else { 'http://localhost:8081' }),
+    [string]$TxUrl = $(if ($env:TX_URL) { $env:TX_URL } else { 'http://localhost:8082' }),
+    [string]$K6Image = $(if ($env:K6_IMAGE) { $env:K6_IMAGE } else { 'grafana/k6:0.54.0' }),
+    [switch]$Smoke,
+    [switch]$Check
 )
 
-$ErrorActionPreference = "Continue"
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TestFile = Join-Path $ScriptDir "k6-transactions-load.js"
-
-Write-Host "===================================================================" -ForegroundColor Cyan
-Write-Host " [P2] Lancement du Test de Charge k6 (50 à 150 VUs sous JWT)       " -ForegroundColor Cyan
-Write-Host "===================================================================" -ForegroundColor Cyan
-Write-Host "Cible Transactions : $BaseUrl"
-Write-Host "Cible Auth         : $AuthUrl"
-
-if ($DryRun) {
-    Write-Host "[DRY-RUN] Validation syntaxique et structurelle du script k6 validée." -ForegroundColor Green
-    exit 0
+function Stop-WithError([string]$Message) {
+    [Console]::Error.WriteLine("[ERREUR] $Message")
+    exit 2
 }
 
-$k6Cmd = Get-Command "k6" -ErrorAction SilentlyContinue
-if ($k6Cmd) {
-    Write-Host "[INFO] Exécution via le binaire local k6..." -ForegroundColor Green
-    & k6 run -e BASE_URL="$BaseUrl" -e AUTH_URL="$AuthUrl" $TestFile
-} else {
-    $dockerCmd = Get-Command "docker" -ErrorAction SilentlyContinue
-    if ($dockerCmd) {
-        Write-Host "[INFO] Exécution via conteneur officiel grafana/k6..." -ForegroundColor Green
-        Get-Content $TestFile | docker run --rm -i --network=host -e BASE_URL="$BaseUrl" -e AUTH_URL="$AuthUrl" grafana/k6 run -
-    } else {
-        Write-Host "[AVERTISSEMENT] Ni 'k6' ni 'docker' ne sont détectés sur ce terminal." -ForegroundColor DarkYellow
-        Write-Host "[SIMULATION] Script k6 validé avec succès pour exécution en CI/CD." -ForegroundColor Green
+try {
+    $testFile = Join-Path $PSScriptRoot 'k6-transactions-load.js'
+    if (-not (Test-Path -LiteralPath $testFile)) { Stop-WithError "script k6 introuvable : $testFile" }
+    if (-not $env:K6_ALICE_PASSWORD) { Stop-WithError "K6_ALICE_PASSWORD n'est pas défini (mot de passe de démo d'alice, à exporter)." }
+    if (-not $env:K6_BOB_PASSWORD) { Stop-WithError "K6_BOB_PASSWORD n'est pas défini (mot de passe de démo de bob, à exporter)." }
+
+    # Moteur : binaire k6 local en priorité, sinon conteneur grafana/k6 (démon Docker requis).
+    $engine = $null
+    if (Get-Command k6 -ErrorAction SilentlyContinue) {
+        $engine = 'local'
     }
-}
+    elseif (Get-Command docker -ErrorAction SilentlyContinue) {
+        & docker info *> $null
+        if ($LASTEXITCODE -eq 0) { $engine = 'docker' }
+    }
+    if (-not $engine) { Stop-WithError "ni 'k6' ni un démon Docker joignable : installez k6 (https://k6.io) ou démarrez Docker." }
 
-exit 0
+    $profile = if ($Smoke) { 'smoke' } elseif ($env:K6_PROFILE) { $env:K6_PROFILE } else { '' }
+    Write-Host "==> OmniPay k6 : moteur=$engine auth=$AuthUrl transactions=$TxUrl profil=$(if ($profile -eq 'smoke') { 'smoke' } else { 'complet' })"
+
+    # Sondes de santé (échec explicite plutôt qu'un test qui échoue au milieu).
+    foreach ($probe in @(@{ Name = 'auth-service'; Url = "$AuthUrl/api/auth/health" }, @{ Name = 'transaction-service'; Url = "$TxUrl/api/transactions/health" })) {
+        try {
+            $null = Invoke-RestMethod -Uri $probe.Url -TimeoutSec 5
+        }
+        catch {
+            Stop-WithError "$($probe.Name) injoignable sur $($probe.Url) : $($_.Exception.Message)"
+        }
+    }
+    Write-Host '==> services joignables'
+
+    if ($Check) {
+        Write-Host '==> prérequis OK (aucun test lancé)'
+        exit 0
+    }
+
+    if ($engine -eq 'local') {
+        $env:AUTH_URL = $AuthUrl
+        $env:TX_URL = $TxUrl
+        $env:K6_PROFILE = $profile
+        & k6 run $testFile
+    }
+    else {
+        # Dans un conteneur, localhost désigne le conteneur : Docker Desktop (Windows/macOS) -> host.docker.internal.
+        $runAuth = $AuthUrl -replace '(localhost|127\.0\.0\.1)', 'host.docker.internal'
+        $runTx = $TxUrl -replace '(localhost|127\.0\.0\.1)', 'host.docker.internal'
+        $net = '--add-host=host.docker.internal:host-gateway'
+        $onLinux = [bool](Get-Variable -Name IsLinux -ValueOnly -ErrorAction SilentlyContinue)
+        if ($onLinux) { $net = '--network=host'; $runAuth = $AuthUrl; $runTx = $TxUrl }
+
+        # Secrets : '-e NOM' sans valeur => Docker lit l'environnement courant (rien dans la ligne de commande).
+        $envArgs = @('-e', 'K6_ALICE_PASSWORD', '-e', 'K6_BOB_PASSWORD', '-e', "AUTH_URL=$runAuth", '-e', "TX_URL=$runTx", '-e', "K6_PROFILE=$profile")
+        foreach ($name in 'K6_ALICE_USER', 'K6_BOB_USER', 'K6_OUT', 'K6_PROMETHEUS_RW_SERVER_URL') {
+            if (Get-Item -Path "Env:$name" -ErrorAction SilentlyContinue) { $envArgs += @('-e', $name) }
+        }
+        # Le script est transmis sur l'entrée standard (aucun montage de volume).
+        Get-Content -LiteralPath $testFile -Raw | & docker run --rm -i $net @envArgs $K6Image run -
+    }
+    exit $LASTEXITCODE
+}
+catch {
+    [Console]::Error.WriteLine("[ERREUR] $($_.Exception.Message)")
+    exit 1
+}

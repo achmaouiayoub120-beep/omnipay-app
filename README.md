@@ -68,13 +68,20 @@ omnipay-app/
 │   ├── terraform/            # Modules de provisionnement
 │   └── ansible/              # Rôles d'automatisation
 ├── services/
-│   ├── auth/                 # Microservice d'authentification
-│   ├── transaction/          # Microservice de transaction
-│   └── notification/         # Microservice de notification
+│   ├── auth/                 # Microservice d'authentification JWT (port 8081)
+│   ├── transaction/          # Microservice de virement & idempotence (port 8082)
+│   ├── notification/         # Microservice de notification asynchrone (port 8083)
+│   └── frontend/             # Portail Web React 18 TypeScript & Nginx (port 8080)
+├── scripts/
+│   ├── soutenance.ps1        # Orchestrateur tout-en-un soutenance (Windows)
+│   ├── soutenance.sh         # Orchestrateur tout-en-un soutenance (Linux/macOS)
+│   ├── bootstrap-all.sh/.ps1 # Bootstrap K3s / Terraform / GitOps (< 15 min)
+│   └── release-v1.sh/.ps1    # Validation et tag sémantique v1.0.0
 ├── tests/
 │   ├── unit/                 # Tests unitaires
 │   ├── integration/          # Tests d'intégration
-│   └── security/             # Tests de charge et de sécurité
+│   ├── load/                 # Banc de tests de charge k6 sous JWT
+│   └── security/             # Tests de sécurité
 ├── .gitleaks.toml            # Configuration de détection anti-secrets
 ├── .gitignore
 ├── CONTRIBUTING.md           # Règles de collaboration & Conventional Commits
@@ -83,12 +90,35 @@ omnipay-app/
 
 ---
 
-## 5. Démarrage Rapide
+## 5. Démarrage Rapide (Soutenance & Développement)
 
 ### Prérequis
 - Git $\ge 2.40$
 - Docker & Docker Compose
-- Java JDK $\ge 21$ & Maven $\ge 3.9$
+- Node.js $\ge 20$ (pour le frontend React 18) et Java JDK $\ge 21$ (optionnel hors Docker)
+
+### Lancement tout-en-un de la stack Soutenance (`postgres`, 3 microservices + `frontend` Nginx)
+```powershell
+# Windows (PowerShell) :
+.\scripts\soutenance.ps1 -Action install
+.\scripts\soutenance.ps1 -OpenBrowser
+# Mode autonome frontend seul sans Docker (http://localhost:3000) :
+.\scripts\soutenance.ps1 -Action frontend
+```
+
+```bash
+# Linux / macOS / Git Bash :
+./scripts/soutenance.sh install
+./scripts/soutenance.sh start --open
+```
+
+| Service | Port local | URL / Sonde |
+|---|---|---|
+| Portail Web Bancaire (Nginx / React 18) | **8080** | `http://localhost:8080` (`/health`) |
+| Auth Microservice | **8081** | `http://localhost:8081/api/auth/health` |
+| Transaction Microservice | **8082** | `http://localhost:8082/api/transactions/health` |
+| Notification Microservice | **8083** | `http://localhost:8083/api/notifications/health` |
+| Jenkins CI/CD (JCasC, option `-WithJenkins`) | **8088** | `http://localhost:8088` |
 
 ### Audit préventif des secrets (Shift-Left)
 Avant chaque commit ou en local :
@@ -105,7 +135,7 @@ chmod +x ci/scripts/audit-secrets.sh && ./ci/scripts/audit-secrets.sh .
 cd ci
 docker compose -f docker-compose-jenkins.yml up -d
 ```
-L'interface Jenkins sera accessible sur [http://localhost:8080](http://localhost:8080).
+L'interface Jenkins sera accessible sur [http://localhost:8088](http://localhost:8088).
 
 ---
 
@@ -118,12 +148,9 @@ Veuillez consulter le document [CONTRIBUTING.md](CONTRIBUTING.md) pour les règl
 
 ---
 
-## 7. État d'Avancement (Jalon Semaine 1)
+## 7. État d'Avancement (Release v1.0.0 — Semaines 1 à 4)
 
-- [x] Initialisation des deux dépôts (`omnipay-app` et `omnipay-gitops`)
-- [x] Configuration de la stratégie de branches et templates GitHub
-- [x] Modélisation des menaces STRIDE (`docs/security/threat-model-stride.md`)
-- [x] Registre ADR initialisé avec ADR-003 et ADR-008
-- [x] Configuration et validation de Gitleaks (`.gitleaks.toml`)
-- [x] Configuration Jenkins JCasC (`ci/jenkins-casc.yaml`) et Pipeline initial (`ci/Jenkinsfile`)
-- [x] Runbook de dépannage CI et documentation d'architecture
+- [x] **S1** : Initialisation des deux dépôts (`omnipay-app` & `omnipay-gitops`), Jenkins JCasC, Gitleaks, Terraform K3s, microservices Spring Boot
+- [x] **S2** : Pipeline DevSecOps 11 stages (Hadolint, SonarQube, Trivy, Syft SBOM, Cosign), persistance PostgreSQL + Flyway, NetworkPolicies & Ingress TLS, Harbor & ArgoCD
+- [x] **S3** : Promotion GitOps multi-env (`dev`/`recette`/`prod`), DAST OWASP ZAP, HashiCorp Vault + ESO, Falco eBPF, Argo Rollouts Canary, Grafana Tempo & Alertmanager
+- [x] **S4** : Portail Web React 18 Obsidian & Champagne + tests Vitest/Playwright, test de charge k6 JWT, résilience Vault/Falco & matrice Zero-Trust, scripts des 5 démos jury, orchestrateur soutenance et supports de présentation (`v1.0.0`)

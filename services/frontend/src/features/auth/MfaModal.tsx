@@ -10,7 +10,7 @@ import {
   Input,
 } from '@/shared/ui';
 import { useAuthStore } from './auth.store';
-import { ShieldCheck, Lock } from 'lucide-react';
+import { ShieldCheck, Lock } from '@phosphor-icons/react';
 
 export function MfaModal() {
   const { requiresMfa, pendingUsername, verifyMfa, logout } = useAuthStore();
@@ -43,16 +43,18 @@ export function MfaModal() {
     <Dialog open={requiresMfa}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2.5 text-gold-400 mb-1">
-            <ShieldCheck className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-wider">
-              Double Authentification (MFA)
+          <div className="flex items-center gap-2 text-gold-400 mb-1">
+            <ShieldCheck className="h-5 w-5 shrink-0" />
+            <span className="caption-3 tracking-wide">
+              Double authentification MFA
             </span>
           </div>
-          <DialogTitle>Validation Forte de Session</DialogTitle>
+          <DialogTitle className="heading-6 text-platinum-50">
+            Validation forte de session
+          </DialogTitle>
           <DialogDescription>
-            Un code de sécurité à 6 chiffres a été généré pour le compte{' '}
-            <strong className="text-platinum-100">{pendingUsername}</strong>.
+            Un code de sécurité à 6 chiffres est requis pour le compte{' '}
+            <strong className="text-platinum-50">{pendingUsername}</strong>.
           </DialogDescription>
         </DialogHeader>
 
@@ -66,13 +68,14 @@ export function MfaModal() {
             error={error || undefined}
             leftIcon={<Lock className="h-4 w-4" />}
             autoFocus
-            helperText="Code de simulation : saisissez n'importe quel code à 6 chiffres."
+            helperText="Simulation : saisissez n'importe quel code à 6 chiffres."
           />
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button
               type="button"
               variant="ghost"
+              size="sm"
               onClick={logout}
               disabled={isVerifying}
             >
@@ -81,6 +84,7 @@ export function MfaModal() {
             <Button
               type="submit"
               variant="primary"
+              size="sm"
               isLoading={isVerifying}
               disabled={code.length !== 6}
             >
