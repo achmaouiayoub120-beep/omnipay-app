@@ -1,10 +1,23 @@
-# 🏦 OmniPay Zero-Trust — Dépôt Applicatif & Pipeline DevSecOps (`omnipay-app`)
+<div align="center">
+
+<img src="docs/assets/logo.png" alt="OmniPay Zero-Trust Logo" width="200"/>
+
+# 🏦 OmniPay Zero-Trust
+### Plateforme Néobanque Cloud-Native & DevSecOps
 
 [![Release v1.0.0](https://img.shields.io/badge/Release-v1.0.0--Final-gold.svg?style=for-the-badge&logo=github)](https://github.com/achmaouiayoub120-beep/omnipay-app/releases/tag/v1.0.0)
 [![Zero-Trust](https://img.shields.io/badge/Architecture-Zero--Trust%20Hardened-blue.svg?style=for-the-badge&logo=shield)](https://github.com/achmaouiayoub120-beep/omnipay-app)
 [![CI Pipeline](https://img.shields.io/badge/CI%2FCD-Jenkins%20JCasC%20(11%20Stages)-orange.svg?style=for-the-badge&logo=jenkins)](https://github.com/achmaouiayoub120-beep/omnipay-app)
 [![Tests Vitest](https://img.shields.io/badge/Tests%20Vitest-70%2F70%20Passed-brightgreen.svg?style=for-the-badge&logo=vitest)](https://github.com/achmaouiayoub120-beep/omnipay-app)
 [![ESTC 2026](https://img.shields.io/badge/ESTC-Promo%202026-purple.svg?style=for-the-badge)](#)
+
+**Dépôt Applicatif & Pipeline CI/CD DevSecOps (`omnipay-app`)**
+
+*Projet de Fin d'Études — ESTC Promo 2026 — Équipe de 5 Ingénieurs*
+
+</div>
+
+---
 
 > [!IMPORTANT]
 > **Avertissement Académique & Simulation Pédagogique :**  
